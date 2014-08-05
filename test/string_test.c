@@ -34,11 +34,26 @@
  * @endverbatim
  */
 
+#define MSTRING_DEBUG 1
+
 #include "xstring.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+
+int raw_test();
 
 int main(int argc, char * argv[]) {
+	// Run the raw test to get a baseline.  If this fails then there
+	// is really no reason to continue at all.
+	int err_count = raw_test();
+	if (err_count > 0) {
+		fprintf(stderr, "Stopping due to errors in raw test.\n");
+	}
+}
+
+int raw_test() {
+	int error_count = 0;
 	int size = 6;
 	char * strings[] = {
 			NULL,
@@ -54,19 +69,19 @@ int main(int argc, char * argv[]) {
 	};
 	// Make some strings.
 	xstring x[size];
+	mstring m[size];
+	char * cx[size];
 	for (int index = 0; index < size; ++index) {
 		x[index] = xstr_wrap(strings[index]);
-	}
-	// Get C strings.
-	char * cs[size];
-	for (int index = 0; index < size; ++index) {
-		cs[index] = xstr_cstr(x[index]);
+		m[index] = mstr_wrap(strings[index]);
+		mstr_inspect(m[index]);
+		cx[index] = xstr_cstr(x[index]);
 	}
 	// Perform comparisons.
 	for (int i = 0; i < size; ++i) {
 		for (int j = 0; j < size; ++j) {
 			int v1 = xstr_strcmp(x[i], x[j]);
-			int v2 = strcmp(cs[i], cs[j]);
+			int v2 = strcmp(cx[i], cx[j]);
 			printf("(%d,%d)=(%d,%d) ", i, j, v1, v2);
 			if ((v1 < 0 && v2 < 0) ||
 					(v1 > 0 && v2 > 0) ||
@@ -74,52 +89,140 @@ int main(int argc, char * argv[]) {
 				printf("OK   ");
 			} else {
 				printf("ERR  ");
+				++error_count;
 			}
 		}
 		printf("\n");
 	}
-	// Print lengths.
+	// Print the strings.
 	for (int index = 0; index < size; ++index) {
-		printf("%d: Length %ld: %s\n", index, xstr_length(x[index]), cs[index]);
-		free(cs[index]);
-		cs[index] = NULL;
+		printf("%d: Length %ld: ", index, xstr_length(x[index]));
+		XPRINT(stdout, x[index]);
+		printf("\n");
 	}
 	// Copy some strings.
 	xstring y[size];
+	char * cy[size];
 	for (int index = 0; index < size; ++index) {
 		y[index] = xstr_copy(x[index]);
-		cs[index] = xstr_cstr(y[index]);
+		cy[index] = xstr_cstr(y[index]);
+		if (xstr_strcmp(y[index], x[index]) != 0) {
+			printf("String copy error.");
+			++error_count;
+		}
+	}
+	// Perform comparisons.
+	for (int i = 0; i < size; ++i) {
+		for (int j = 0; j < size; ++j) {
+			int v1 = xstr_strcmp(y[i], x[j]);
+			int v2 = strcmp(cx[i], cy[j]);
+			printf("(%d,%d)=(%d,%d) ", i, j, v1, v2);
+			if ((v1 < 0 && v2 < 0) ||
+					(v1 > 0 && v2 > 0) ||
+					(v1 == 0 && v2 == 0)) {
+				printf("OK   ");
+			} else {
+				printf("ERR  ");
+				++error_count;
+			}
+		}
+		printf("\n");
 	}
 	for (int index = 0; index < size; ++index) {
-		printf("Length %ld: %s\n", xstr_length(y[index]), cs[index]);
-		free(cs[index]);
-		cs[index] = NULL;
+		printf("Length %ld: ", xstr_length(y[index]));
+		XPRINT(stdout, y[index]);
+		printf("\n");
+	}
+	// Free the C strings.
+	for (int index = 0; index < size; ++index) {
+		free(cx[index]);
+		cx[index] = NULL;
+		free(cy[index]);
+		cy[index] = NULL;
 	}
 	// This should not cause a memory leak.
 	xstr_free(xstr_wrap_f(xstr_cstr(x[5])));
+	// Concatenate some strings.
+	xstring c1 = xstr_concat(x[0], x[1]);
+	if (c1 != NULL) {
+		printf("First empty concatenation does not yeild NULL.\n");
+	}
+	xstr_free(c1);
+	c1 = xstr_concat(x[0], x[2]);
+	if (c1 != NULL) {
+		printf("Second empty concatenation does not yeild NULL.\n");
+	}
+	xstr_free(c1);
+	c1 = xstr_concat(x[0], x[3]);
+	if (xstr_strcmp(x[3], c1) != 0) {
+		printf("Third concatenation failed.\n");
+	}
+	xstr_free(c1);
+	c1 = xstr_concat(x[3], x[4]);
+	char * c2 = xstr_cstr(c1);
+	if (strcmp(c2, "\"Right,\" said Fred.") != 0) {
+		printf("Fourth concatenation failed.\n");
+	}
+	free(c2);
+	xstr_free(c1);
 	// Build some mstrings.
-	mstring m[size];
 	for (int index = 0; index < size; ++index) {
+		mstr_free(m[index]);
 		m[index] = xstr_to_mstr(x[index]);
 		xstring back = mstr_to_xstr(m[index]);
-		cs[index] = mstr_cstr(m[index]);
+		cx[index] = mstr_cstr(m[index]);
 		if (xstr_strcmp(back, x[index]) != 0) {
-			printf("Round trip error at index %d.", index);
+			printf("Round trip error at index %d.\n", index);
+			printf("  --> %s\n", cx[index]);
 		}
 		xstr_free(back);
 	}
 	for (int index = 0; index < size; ++index) {
-		printf("Length %ld: %s\n", mstr_length(m[index]), cs[index]);
-		free(cs[index]);
-		cs[index] = NULL;
+		printf("Length %ld: %s\n", mstr_length(m[index]), cx[index]);
+		free(cx[index]);
+		cx[index] = NULL;
 	}
 	// Done.
 	for (int index = 0; index < size; ++index) {
 		xstr_free(x[index]);
-		x[index] = NULL;
 		xstr_free(y[index]);
+		x[index] = NULL;
 		y[index] = NULL;
 		mstr_free(m[index]);
 		m[index] = NULL;
 	}
+	// Concatenate test.  This should cause no memory leaks.
+	xstring xx = xstr_wrap("Counting down:");
+	mstring mm = mstr_wrap("Counting down:");
+	mstring mm2 = mstr_new(0);
+	mstr_append_cstr(mm2, "Counting down:");
+	for (int index = 10; index > 0; --index) {
+		char buf[10];
+		sprintf(buf, " %d", index);
+		xstring xadd = xstr_wrap(buf);
+		mstring madd = mstr_wrap(buf);
+		xstring xy = xstr_concat(xx, xadd);
+		mstr_concat(mm, madd);
+		mstr_append_cstr(mm2, buf);
+		xstr_free(xx);
+		xstr_free(xadd);
+		xx = xy;
+		mstring mconv = xstr_to_mstr(xx);
+		if (mstr_strcmp(mconv, mm) != 0) {
+			++error_count;
+			fprintf(stderr, "Failed in concatenate test.\n");
+		}
+		if (mstr_strcmp(mconv, mm2) != 0) {
+			++error_count;
+			fprintf(stderr, "Failed in concatenate test.\n");
+		}
+		mstr_free(mconv);
+	}
+	MPRINT(stdout, mm); printf("\n");
+	MPRINT(stdout, mm2); printf("\n");
+	mstr_free(mm);
+	mstr_free(mm2);
+	xstr_free(xx);
+	// Done.
+	return error_count;
 }

@@ -37,6 +37,7 @@
  * @endverbatim
  */
 
+#include <stddef.h>
 #include <wchar.h>
 
 /// Opaque type for a string.
@@ -44,6 +45,35 @@ typedef struct xstring_ * xstring;
 
 /// Opaque type for a mutable string.
 typedef struct mstring_ * mstring;
+
+
+/**
+ * A macro to print an xstring to the given stream.  The string is
+ * printed, but no other action is taken.  Note that this is a
+ * statement, not an expression.
+ * @param m_stream			An IO stream, such as stdout.
+ * @param m_xstring			The string to print.
+ */
+#define XPRINT(m_stream, m_xstring) { \
+	char * cstring = xstr_cstr(m_xstring); \
+	fprintf(m_stream, "%s", cstring); \
+	fflush(m_stream); \
+	free(cstring); \
+}
+
+/**
+ * A macro to print an mstring to the given stream.  The string is
+ * printed, but no other action is taken.  Note that this is a
+ * statement, not an expression.
+ * @param m_stream			An IO stream, such as stdout.
+ * @param m_mstring			The string to print.
+ */
+#define MPRINT(m_stream, m_mstring) { \
+	char * cstring = mstr_cstr(m_mstring); \
+	fprintf(m_stream, "%s", cstring); \
+	fflush(m_stream); \
+	free(cstring); \
+}
 
 /// Opaque type for a character.
 #ifdef SPSPS_CHAR
@@ -55,6 +85,16 @@ typedef char xchar;
 /// Incremental size to use for mutable string.
 #ifndef MSTR_INC
 #  define MSTR_INC 64
+#endif
+
+#ifdef MSTRING_DEBUG
+/**
+ * Inspect a mstring's internal data.  This is of no use other
+ * than for debugging, and you must therefore set the MSTRING_DEBUG
+ * flag to see the definition.
+ * @param str			The mstring.
+ */
+void mstr_inspect(mstring str);
 #endif
 
 /**
@@ -122,6 +162,42 @@ mstring mstr_wrap(char * value);
  * @return				The new mutable string.
  */
 mstring mstr_wrap_f(char * value);
+
+/**
+ * Convert a C null-terminated string into an xstring.  The input
+ * C string is converted to the proper characters and is not needed
+ * subsequent to this call.  The caller should deallocate it.
+ * @param value			The null-terminate C string.
+ * @return				The new immutable string.
+ */
+xstring xstr_wwrap(wchar_t * value);
+
+/**
+ * Convert a C null-terminated string into an xstring.  The input
+ * C string is converted to the proper characters and is not needed
+ * subsequent to this call, and is explicitly deallocated.
+ * @param value			The null-terminate C string.
+ * @return				The new immutable string.
+ */
+xstring xstr_wwrap_f(wchar_t * value);
+
+/**
+ * Convert a C null-terminated string into an mstring.  The input
+ * C string is converted to the proper characters and is not needed
+ * subsequent to this call.  The caller should deallocate it.
+ * @param value			The null-terminated C string.
+ * @return				The new mutable string.
+ */
+mstring mstr_wwrap(wchar_t * value);
+
+/**
+ * Convert a C null-terminated string into an mstring.  The input
+ * C string is converted to the proper characters and is not needed
+ * subsequent to this call, and is explicitly deallocated.
+ * @param value			The null-terminated C string.
+ * @return				The new mutable string.
+ */
+mstring mstr_wwrap_f(wchar_t * value);
 
 /**
  * Create a copy of the string.  The resulting copy is independent
@@ -202,6 +278,26 @@ mstring mstr_append(mstring value, xchar ch);
  * @return				The new string.
  */
 xstring xstr_append_f(xstring value, xchar ch);
+
+/**
+ * Append a C string to the end of the given mstring.  The
+ * C string is not stored by this action, and can be deallocated
+ * by the caller.  The input string is modified and returned.
+ * @param value			The string.
+ * @param cstr			The string to append.
+ * @return				The input string, modified.
+ */
+mstring mstr_append_cstr(mstring value, xchar * cstr);
+
+/**
+ * Append a C string to the end of the given mstring.  The
+ * C string is automatically deallocated by this function.
+ * The input string is modified and returned.
+ * @param value			The string.
+ * @param cstr			The string to append.
+ * @return				The input string, modified.
+ */
+mstring mstr_append_cstr_f(mstring value, xchar * cstr);
 
 /**
  * Concatenate two strings.  The second string is appended to the

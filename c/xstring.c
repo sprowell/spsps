@@ -37,6 +37,7 @@
 #include "xstring.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Some notes.
  *
@@ -81,6 +82,55 @@ struct mstring_ {
 	size_t length;
 	struct mstring_ * next;
 };
+
+void
+mstr_inspect(mstring str) {
+	printf("Inspecting mstring:\n");
+	while (str != NULL) {
+		printf("  mstring {\n");
+		printf("    local_capacity = %lu\n", str->local_capacity);
+		printf("      local_length = %lu\n", str->local_length);
+		printf("            length = %lu\n", str->length);
+		printf("              cstr = [");
+		int count = 16;
+		for (int index = 0; index < str->local_length; ++index) {
+			unsigned char ch = str->cstr[index];
+			if (isprint(ch)) {
+				printf("%02x (%1c),", ch, ch);
+			} else {
+				printf("%02x (?),", ch);
+			}
+			--count;
+			if (count <= 0) {
+				printf("\n                      ");
+				count = 16;
+			}
+		}
+		if (count != 16) {
+			printf("\n                      ");
+			count = 16;
+		}
+		printf("/* local_length boundary */");
+		printf("\n                      ");
+		for (int index = str->local_length; index < str->local_capacity; ++index) {
+			unsigned char ch = str->cstr[index];
+			if (isprint(ch)) {
+				printf("%02x (%1c),", ch, ch);
+			} else {
+				printf("%02x (?),", ch);
+			}
+			--count;
+			if (count <= 0) {
+				printf("\n                      ");
+				count = 16;
+			}
+		}
+		printf("]\n");
+		printf("  }\n");
+		str = str->next;
+	}
+	printf("  NULL\n");
+}
 
 xstring
 xstr_new() {
@@ -148,8 +198,7 @@ xstr_wrap(char * value) {
 	str->length = len;
 	str->cstr = (xchar *) malloc(len * sizeof(xchar));
 	for (size_t index = 0; index < len; ++index) {
-		xchar ch = value[index];
-		str->cstr[index] = ch;
+		str->cstr[index] = (xchar) value[index];
 	} // Copy all characters, converting if necessary.
 	return str;
 }
@@ -163,13 +212,13 @@ xstr_wrap_f(char * value) {
 
 mstring
 mstr_wrap(char * value) {
-	size_t len = value == NULL ? 0 : strlen(value);
+	size_t len = (value == NULL) ? 0 : strlen(value);
 	mstring str = mstr_new(len + MSTR_INC);
-	if (value == NULL) return str;
 	str->length = len;
-	for (size_t index = 0; index < str->length; ++index) {
-		xchar ch = value[index];
-		str->cstr[index] = ch;
+	str->local_length = len;
+	if (value == NULL) return str;
+	for (size_t index = 0; index < len; ++index) {
+		str->cstr[index] = (xchar) value[index];
 	} // Copy all characters, converting if necessary.
 	return str;
 }
@@ -177,6 +226,47 @@ mstr_wrap(char * value) {
 mstring
 mstr_wrap_f(char * value) {
 	mstring ret = mstr_wrap(value);
+	if (value != NULL) free(value);
+	return ret;
+}
+
+xstring
+xstr_wwrap(wchar_t * value) {
+	size_t len = (value == NULL) ? 0 : wcslen(value);
+	// If the length is zero, don't allocate anything.
+	if (len == 0) return NULL;
+	xstring str = xstr_new();
+	str->length = len;
+	str->cstr = (xchar *) malloc(len * sizeof(xchar));
+	for (size_t index = 0; index < len; ++index) {
+		str->cstr[index] = (xchar) value[index];
+	} // Copy all characters, converting if necessary.
+	return str;
+}
+
+xstring
+xstr_wwrap_f(wchar_t * value) {
+	xstring ret = xstr_wwrap(value);
+	if (value != NULL) free(value);
+	return ret;
+}
+
+mstring
+mstr_wwrap(wchar_t * value) {
+	size_t len = (value == NULL) ? 0 : wcslen(value);
+	mstring str = mstr_new(len + MSTR_INC);
+	str->length = len;
+	str->local_length = len;
+	if (value == NULL) return str;
+	for (size_t index = 0; index < str->length; ++index) {
+		str->cstr[index] = (xchar) value[index];
+	} // Copy all characters, converting if necessary.
+	return str;
+}
+
+mstring
+mstr_wwrap_f(wchar_t * value) {
+	mstring ret = mstr_wwrap(value);
 	if (value != NULL) free(value);
 	return ret;
 }
@@ -195,8 +285,9 @@ mstring
 mstr_copy(mstring other) {
 	size_t len = other == NULL ? 0 : other->length;
 	mstring str = mstr_new(len + MSTR_INC);
+	str->length = len;
+	str->local_length = len;
 	if (len == 0) return str;
-	str->length = other->length;
 	mstring here = other;
 	xchar * there = str->cstr;
 	while (here != NULL) {
@@ -300,6 +391,62 @@ xstr_append_f(xstring value, xchar ch) {
 	return ret;
 }
 
+mstring
+mstr_append_cstr(mstring value, xchar * cstr) {
+	if (value == NULL) {
+		return mstr_wrap(cstr);
+	}
+	size_t len = (cstr == NULL) ? 0 : strlen(cstr);
+	if (len == 0) return value;
+	// Go to the last block of the string.
+	mstring here = value;
+	while (here->next != NULL) {
+		here->length += len;
+		here = here->next;
+	}
+	here->length += len;
+	size_t excess = here->local_capacity - here->local_length;
+	if (excess >= len) {
+		// The current block can hold this string with no
+		// additional allocation.  Copy and convert.
+		if (sizeof(xchar) == sizeof(char)) {
+			memcpy(here->cstr + here->local_length, cstr, len);
+		} else {
+			for (int index = 0; index < len; ++index) {
+				here->cstr[here->local_length + index] = (xchar) cstr[index];
+			}
+		}
+		here->local_length += len;
+		return value;
+	}
+	// There is not enough excess capacity to hold the string.
+	if (excess > 0) {
+		// We can copy a portion of the string in now.
+		here->local_length += excess;
+		if (sizeof(xchar) == sizeof(char)) {
+			memcpy(here->cstr + here->local_length, cstr, excess);
+		} else {
+			for (int index = 0; index < excess; ++index) {
+				here->cstr[here->local_length + index] = (xchar) cstr[index];
+			}
+		}
+		cstr += excess;
+	}
+	// We must allocate a new block to hold the rest.
+	mstring there = mstr_wrap(cstr);
+	here->next = there;
+	return value;
+}
+
+mstring
+mstr_append_cstr_f(mstring value, xchar * cstr) {
+	if (cstr != NULL) {
+		mstr_append_cstr(value, cstr);
+		free(cstr);
+	}
+	return value;
+}
+
 xstring
 xstr_concat(xstring first, xstring second) {
 	// The user expects to be able to deallocate both strings after
@@ -326,14 +473,17 @@ mstr_concat(mstring first, mstring second) {
 	if (second == NULL) return first;
 	if (first == NULL) return second;
 	mstring here = first;
-	// Find the last block.
-	while (here->next != NULL) here = here->next;
+	// Find the last block and correct the lengths along the way.
+	while (here->next != NULL) {
+		here->length += second->length;
+		here = here->next;
+	}
+	here->length += second->length;
 	// Truncate the capacity of this block.  No need to reallocate
 	// any bytes; we just waste them, since it is faster.  If this
 	// is a big problem for you, choose a smaller MSTR_INC.
 	here->local_capacity = here->local_length;
 	here->next = second;
-	first->length += second->length;
 	return first;
 }
 
@@ -443,8 +593,8 @@ xstr_strcmp(xstring lhs, xstring rhs) {
 		}
 		// The character types might be any type, so we can't just
 		// subtract.  Actually do the comparisons.
-		if (lhsp < rhsp) return -1;
-		if (lhsp > rhsp) return 1;
+		if (*lhsp < *rhsp) return -1;
+		if (*lhsp > *rhsp) return 1;
 		++lhsp;
 		++rhsp;
 		--lhslen;
@@ -461,8 +611,8 @@ xstr_strcmp(xstring lhs, xstring rhs) {
 int
 mstr_strcmp(mstring lhs, mstring rhs) {
 	if (lhs == rhs) return 0;
-	size_t lhslen = lhs == NULL ? 0 : lhs->length;
-	size_t rhslen = rhs == NULL ? 0 : rhs->length;
+	size_t lhslen = (lhs == NULL) ? 0 : lhs->length;
+	size_t rhslen = (rhs == NULL) ? 0 : rhs->length;
 	if (lhslen == 0) {
 		if (rhslen > 0) {
 			// Then lhs < rhs.
@@ -482,10 +632,10 @@ mstr_strcmp(mstring lhs, mstring rhs) {
 	while (rhs != NULL && rhs->local_length == 0) rhs = rhs->next;
 	// If we come here then both the strings have non-zero length
 	// and we are pointing to a block with content.
-	size_t lhsll = lhs->local_length;
-	size_t rhsll = rhs->local_length;
-	xchar * lhsp = lhs->cstr;
-	xchar * rhsp = rhs->cstr;
+	size_t lhsll = (lhs == NULL) ? 0 : lhs->local_length;
+	size_t rhsll = (rhs == NULL) ? 0 : rhs->local_length;
+	xchar * lhsp = (lhs == NULL) ? NULL : lhs->cstr;
+	xchar * rhsp = (rhs == NULL) ? NULL : rhs->cstr;
 	while (lhs != NULL && rhs != NULL) {
 		if (*lhsp < *rhsp) return -1;
 		if (*lhsp > *rhsp) return 1;
