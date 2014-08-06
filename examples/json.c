@@ -36,20 +36,26 @@
 
 #define SPSPS_SHORTHAND
 #include "parser.h"
+#include "xstring.h"
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
-#define ERRF(m_parser, m_msg, ...) { \
+#define ERR(m_parser, m_msg, ...) { \
 	pLoc loc = spsps_loc(m_parser); \
 	fprintf(stderr, "ERROR %s:%d:%d: " m_msg "\n", (loc)->name, \
-			(loc)->line, (loc)->column, __VA_ARGS__); \
-}
-#define ERR(m_parser, m_msg) { \
-	pLoc loc = spsps_loc(m_parser); \
-	fprintf(stderr, "ERROR %s:%d:%d: " m_msg "\n", (loc)->name, \
-			(loc)->line, (loc)->column); \
+			(loc)->line, (loc)->column, ## __VA_ARGS__); \
 }
 
+SPSPS_CHAR chbuf[15]; // U+002e (.)
+char * printify(unsigned SPSPS_CHAR ch) {
+	if (isprint(ch)) {
+		sprintf(chbuf, "U+%04x (%1c)", ch, ch);
+	} else {
+		sprintf(chbuf, "U+%04x", ch);
+	}
+	return chbuf;
+}
 
 void parse_value(pParser parser);
 void parse_string(pParser parser);
@@ -105,7 +111,7 @@ parse_value(pParser parser) {
 		break;
 	case 't':
 		if (spsps_peek_and_consume(parser, "true")) {
-			puts("true");
+			puts("true\n");
 		} else {
 			ERR(parser, "Saw a value starting with 't' and expected "
 					"true, but did not find that.  Did you forget to "
@@ -115,7 +121,7 @@ parse_value(pParser parser) {
 		break;
 	case 'f':
 		if (spsps_peek_and_consume(parser, "false")) {
-			puts("false");
+			puts("false\n");
 		} else {
 			ERR(parser, "Saw a value starting with 'f' and expected "
 					"false, but did not find that.  Did you forget to "
@@ -125,7 +131,7 @@ parse_value(pParser parser) {
 		break;
 	case 'n':
 		if (spsps_peek_and_consume(parser, "null")) {
-			puts("false");
+			puts("null\n");
 		} else {
 			ERR(parser, "Saw a value starting with 'n' and expected "
 					"null, but did not find that.  Did you forget to "
@@ -135,12 +141,13 @@ parse_value(pParser parser) {
 		break;
 	default:
 		// Check for a digit.
-		if (ch >= '0' && ch <= '9') {
+		if (isdigit(ch)) {
 			parse_number(parser);
 		} else {
-			ERRF(parser, "Expected to find a value, but instead found "
-					"unexpected character %c, which does not start a "
-					"value.  Did you forget to quote a string?", ch);
+			ERR(parser, "Expected to find a value, but instead found "
+					"unexpected character %s, which does not start a "
+					"value.  Did you forget to quote a string?", printify(ch));
+			return;
 		}
 	}
 }
@@ -149,39 +156,99 @@ void
 parse_string(pParser parser) {
 	// The first thing in the stream must be the quotation mark.
 	if (! spsps_peek_and_consume(parser, "\"")) {
-		ERRF(parser, "Expected to find a quotation mark for a string, "
-				"but instead found '%c'.", spsps_peek(parser));
+		ERR(parser, "Expected to find a quotation mark for a string, "
+				"but instead found %s.", printify(spsps_peek(parser)));
 		return;
 	}
 	// Read the rest of the string.
-	size_t limit = 64;
-	size_t pos = 0;
-	SPSPS_CHAR * str = malloc(sizeof(SPSPS_CHAR) * limit);
+	mstring str = NULL;
 	while (! spsps_peek_and_consume(parser, "\"") && !spsps_eof(parser)) {
-		str[pos++] = spsps_consume(parser);
-		if (pos >= limit) {
-			int oldlimit = limit;
-			limit += 64;
-			SPSPS_CHAR * newstr = malloc(sizeof(SPSPS_CHAR) * limit);
-			memcpy(newstr, str, oldlimit);
-			str = newstr;
-		}
+		mstr_append(str, spsps_consume(parser));
 	} // Loop over the characters in the string.
-
-	printf("string: %s", str);
+	char * cstring = mstr_cstr(str);
+	printf("string: %s\n", cstring);
+	free(cstring);
 }
 
 void
 parse_number(pParser parser) {
-
+	// Build the number by consuming the digits.
+	bool neg = spsps_peek_and_consume(parser, "-");
+	int value = 0;
+	if (! isdigit(spsps_peek(parser))) {
+		ERR(parser, "Expected to find a digit, but instead found %s.",
+				printify(spsps_peek(parser)));
+		return;
+	}
+	while (isdigit(spsps_peek(parser))) {
+		value *= 10;
+		value += spsps_consume(parser) - '0';
+	} // Consume all digits.
+	if (neg) value = -value;
+	printf("number: %d\n", value);
 }
 
 void
 parse_object(pParser parser) {
-
+	// Arrays start with a curly brace.
+	if (! spsps_peek_and_consume(parser, "{")) {
+		ERR(parser, "Expected to find the start of an object (a curly "
+				"brace), but instead found %s.", printify(spsps_peek(parser)));
+		return;
+	}
+	// Now consume a sequence of string equal value pairs.
+	puts("object start");
+	while (! spsps_eof(parser)) {
+		spsps_consume_whitespace(parser);
+		SPSPS_CHAR ch = spsps_peek(parser);
+		if (ch == '"') {
+			// Start of a pair.  Parse the string.
+			parse_string(parser);
+			spsps_consume_whitespace(parser);
+			// Expect an equal sign.
+			if (! spsps_peek_and_consume(parser, "=")) {
+				ERR(parser, "Expected to find an equal sign for a "
+						"string = value pair, but instead found %s.",
+						printify(spsps_peek(parser)));
+				return;
+			}
+			spsps_consume_whitespace(parser);
+			// Expect a value.
+			parse_value(parser);
+		} else if (ch == '}') {
+			// End of object.
+			break;
+		} else {
+			ERR(parser, "Expected to find the start of a "
+					"string = value pair, or the end of the "
+					"object (a closing curly brace), but "
+					"instead found %s.", printify(ch));
+			return;
+		}
+	} // Consume all pairs.
+	puts("object end");
 }
 
 void
-parse_array(pParser array) {
-
+parse_array(pParser parser) {
+	// Arrays start with a square bracket.
+	if (! spsps_peek_and_consume(parser, "[")) {
+		ERR(parser, "Expected to find the start of an array (a square "
+				"bracket), but instead found %s.",
+				printify(spsps_peek(parser)));
+		return;
+	}
+	// Now consume a comma-separated list of items.
+	puts("array start");
+	spsps_consume_whitespace(parser);
+	while (! spsps_eof(parser)) {
+		parse_value(parser);
+		spsps_consume_whitespace(parser);
+		if (spsps_peek_and_consume(parser, ",")) {
+			spsps_consume_whitespace(parser);
+		} else if (spsps_peek_and_consume(parser, "]")) {
+			break;
+		}
+	} // Consume until closing square bracket.
+	puts("array end");
 }
