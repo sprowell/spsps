@@ -280,6 +280,27 @@ mstring mstr_append(mstring value, xchar ch);
 xstring xstr_append_f(xstring value, xchar ch);
 
 /**
+ * Append a C string to the end of the given xstring.  The
+ * C string is not stored by this action, and can be deallocated
+ * by the caller.  The input string not modified; a new string is
+ * returned.
+ * @param value			The string.
+ * @param cstr			The string to append.
+ * @return				The input string, modified.
+ */
+xstring xstr_append_cstr(xstring value, xchar * cstr);
+
+/**
+ * Append a C string to the end of the given xstring.  The
+ * C string is automatically deallocated by this function, as is
+ * the input xstring.  A new xstring is allocated and returned.
+ * @param value			The string.
+ * @param cstr			The string to append.
+ * @return				The input string, modified.
+ */
+xstring xstr_append_cstr_f(xstring value, xchar * cstr);
+
+/**
  * Append a C string to the end of the given mstring.  The
  * C string is not stored by this action, and can be deallocated
  * by the caller.  The input string is modified and returned.

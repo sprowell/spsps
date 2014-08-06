@@ -213,10 +213,10 @@ xstr_wrap_f(char * value) {
 mstring
 mstr_wrap(char * value) {
 	size_t len = (value == NULL) ? 0 : strlen(value);
+	if (len == 0) return NULL;
 	mstring str = mstr_new(len + MSTR_INC);
 	str->length = len;
 	str->local_length = len;
-	if (value == NULL) return str;
 	for (size_t index = 0; index < len; ++index) {
 		str->cstr[index] = (xchar) value[index];
 	} // Copy all characters, converting if necessary.
@@ -254,10 +254,10 @@ xstr_wwrap_f(wchar_t * value) {
 mstring
 mstr_wwrap(wchar_t * value) {
 	size_t len = (value == NULL) ? 0 : wcslen(value);
+	if (len == 0) return NULL;
 	mstring str = mstr_new(len + MSTR_INC);
 	str->length = len;
 	str->local_length = len;
-	if (value == NULL) return str;
 	for (size_t index = 0; index < str->length; ++index) {
 		str->cstr[index] = (xchar) value[index];
 	} // Copy all characters, converting if necessary.
@@ -284,10 +284,10 @@ xstr_copy(xstring other) {
 mstring
 mstr_copy(mstring other) {
 	size_t len = other == NULL ? 0 : other->length;
+	if (len == 0) return NULL;
 	mstring str = mstr_new(len + MSTR_INC);
 	str->length = len;
 	str->local_length = len;
-	if (len == 0) return str;
 	mstring here = other;
 	xchar * there = str->cstr;
 	while (here != NULL) {
@@ -320,8 +320,8 @@ mstr_to_xstr(mstring other) {
 mstring
 xstr_to_mstr(xstring other) {
 	size_t len = other == NULL ? 0 : other->length;
+	if (len == 0) return NULL;
 	mstring ret = mstr_new(len + MSTR_INC);
-	if (other == NULL || other->length == 0) return ret;
 	memcpy(ret->cstr, other->cstr, len * sizeof(xchar));
 	ret->local_length = len;
 	ret->length = len;
@@ -391,8 +391,36 @@ xstr_append_f(xstring value, xchar ch) {
 	return ret;
 }
 
+xstring
+xstr_append_cstr(xstring value, char * cstr) {
+	if (value == NULL) return xstr_wrap(cstr);
+	size_t len = (cstr == NULL) ? 0 : strlen(cstr);
+	if (len == 0) return value;
+	xchar * newstr = (xchar *) malloc(sizeof(xchar) * (len + value->length));
+	memcpy(newstr, value->cstr, sizeof(xchar) * value->length);
+	if (sizeof(xchar) == sizeof(char)) {
+		memcpy(newstr + value->length, cstr, len);
+	} else {
+		for (size_t index = 0; index < len; ++index) {
+			newstr[value->length + index] = cstr[index];
+		}
+	}
+	xstring ret = xstr_new();
+	ret->cstr = newstr;
+	ret->length = value->length + len;
+	return ret;
+}
+
+xstring
+xstr_append_cstr_f(xstring value, char * cstr) {
+	xstring ret = xstr_append_cstr(value, cstr);
+	if (cstr != NULL) free(cstr);
+	if (value != NULL) xstr_free(value);
+	return ret;
+}
+
 mstring
-mstr_append_cstr(mstring value, xchar * cstr) {
+mstr_append_cstr(mstring value, char * cstr) {
 	if (value == NULL) {
 		return mstr_wrap(cstr);
 	}
@@ -439,7 +467,7 @@ mstr_append_cstr(mstring value, xchar * cstr) {
 }
 
 mstring
-mstr_append_cstr_f(mstring value, xchar * cstr) {
+mstr_append_cstr_f(mstring value, char * cstr) {
 	if (cstr != NULL) {
 		mstr_append_cstr(value, cstr);
 		free(cstr);
@@ -518,44 +546,89 @@ mstr_char(mstring value, size_t index) {
 
 xstring
 xstr_substr(xstring value, size_t start, size_t num) {
-	if (num == 0 || value == NULL) return NULL;
+	if (num == 0) return NULL;
 	// The requested substring is not empty, so allocate.
 	xstring str = xstr_new();
 	str->cstr = (xchar *) malloc(sizeof(xchar) * num);
 	str->length = num;
+	size_t vlen = (value == NULL) ? 0 : value->length;
 	// Now there are two ranges.  The first is characters that are
 	// in the original string and should be copied.  The second is
 	// indices that are past the end of the original string, and
 	// should be set to zero.  This happens at index value->length.
-	size_t second = start + num - value->length;
-	size_t first = second <= 0 ? num : num - second;
-	if (first > 0) {
-		memcpy(str->cstr, value->cstr + start, sizeof(xchar) * first);
+	if (start >= vlen) {
+		// Start is past the end of the string.  The first range is
+		// empty; everything is in the second range.
+		memset(str->cstr, 0, sizeof(xchar) * num);
+	} else if (start + num >= vlen) {
+		// Start is in the string, but the end of the range is past
+		// the end of the string.  We need both ranges.  The number
+		// of elements in the first range is given by the following
+		// equation.
+		size_t flen = vlen - 1 - start;
+		memcpy(str->cstr, value->cstr + start, sizeof(xchar) * flen);
+		memset(str->cstr + flen, 0, sizeof(xchar) * (num - flen));
+	} else {
+		// The entire substring is inside the string.
+		memcpy(str->cstr, value->cstr + start, sizeof(xchar) * num);
 	}
-	if (second > 0) {
-		memset(str->cstr + first, 0, sizeof(xchar) * second);
-	}
-	// Some cases to show the above calculations are correct.
-	// There are three cases:
-	// + start and end are in range.
-	// + start is in range, but end is not.
-	// + both start and end are out of range.
-	//
-	// value->length   start   num   first   second
-	// 10              2       4     4       -4
-	// 10              2       9     8       1
-	// 10              10      4     0       4
 	return str;
 }
 
 mstring
 mstr_substr(mstring value, size_t start, size_t num) {
-	// TODO This is a slightly inefficient way to do this.
+	if (num == 0) return NULL;
+	// The requested string is not empty, so allocate it.
 	mstring str = mstr_new(num + MSTR_INC);
-	if (num == 0 || value == NULL) return str;
-	for (size_t index = 0; index < num; ++index) {
-		str->cstr[index] = mstr_char(value, index + start);
-	} // Gather the substring.
+	size_t vlen = (value == NULL) ? 0 : value->length;
+	// Now there are two ranges.  The first is characters that are
+	// in the original string and should be copied.  The second is
+	// indices that are past the end of the original string, and
+	// should be set to zero.  This happens at index value->length.
+	if (start >= vlen) {
+		// Start is past the end of the string.  The first range is
+		// empty; everything is in the second range.
+		memset(str->cstr, 0, sizeof(xchar) * num);
+		return str;
+	}
+	// Now we have to extract characters from the string, but the
+	// string may have multiple blocks.  We still need to know how
+	// many characters to extract from the string.
+	size_t flen;
+	if (start + num >= vlen) {
+		// Start is in the string, but the end of the range is past
+		// the end of the string.  We need both ranges.
+		flen = vlen - 1 - start;
+		memset(str->cstr + flen, 0, sizeof(xchar) * (num - flen));
+	} else {
+		// The entire substring is inside the string.
+		flen = num;
+	}
+	// Now we just have to extract flen characters from this string,
+	// starting at position start.  Find the block containing the
+	// start position.
+	while (start >= value->local_length) {
+		start -= value->local_length;
+		value = value->next;
+	} // Find the block containing the start position.
+	// Extract the desired characters.
+	char * here = str->cstr;
+	while (flen > 0) {
+		// We are copying from this block.  Figure out the number of
+		// characters available in this block.
+		size_t len = value->local_length - start;
+		// Figure out how many we want.  It may be all of them, or
+		// only some.
+		size_t count = (len >= flen) ? flen : len;
+		// Copy those characters.
+		flen -= count;
+		memcpy(here, value->cstr + start, count);
+		here += count;
+		// We start from the beginning of the next block if we need
+		// more characters.
+		value = value->next;
+		start = 0;
+	} // Extract the desired characters.
 	return str;
 }
 
