@@ -42,12 +42,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#define ERR(m_parser, m_msg, ...) { \
-	pLoc loc = spsps_loc(m_parser); \
-	fprintf(stderr, "ERROR %s:%d:%d: " m_msg "\n", (loc)->name, \
-			(loc)->line, (loc)->column, ## __VA_ARGS__); \
-}
-
 SPSPS_CHAR chbuf[15]; // U+002e (.)
 char * printify(unsigned SPSPS_CHAR ch) {
 	if (isprint(ch)) {
@@ -58,12 +52,75 @@ char * printify(unsigned SPSPS_CHAR ch) {
 	return chbuf;
 }
 
-json_value * parse_value(pParser parser);
-json_value * parse_string(pParser parser);
-json_value * parse_number(pParser parser);
-json_value * parse_object(pParser parser);
-json_value * parse_array(pParser array);
+/**
+ * Come here to read a JSON value from the stream.  Leading whitespace is
+ * allowed.
+ * @verbatim
+ * value = string | number | object | array
+ *       | "true" | "false" | "null"
+ * @endverbatim
+ * @param parser			The parser object.
+ * @return					The parsed value, or NULL if an error occurs.
+ */
+json_value * parse_value(Parser parser);
 
+/**
+ * Come here to parse a quoted string from the stream.  The stream must
+ * be pointing to the open quotation mark.
+ * @verbatim
+ * string = '"' ( CHARACTER | ESCAPE )* '"'
+ * @endverbatim
+ * A `CHARACTER` is any character other than `\` and `"`.  An escape can
+ * be any of `\r`, `\n`, `\t`, or a protected character like `\` and `"`.
+ * It can also be used to join lines if it is the last character on a line,
+ * and it can introduce an 8-bit hex escape (`\x0a`, for instance).
+ * @param parser			The parser.
+ * @return					The parsed string value, or NULL on error.
+ */
+json_value * parse_string(Parser parser);
+
+/**
+ * Come here to parse a number.  The first character in the stream is
+ * expected to be the first character of the number.  This could be a
+ * minus sign, or it could be a digit.  There must be at least one
+ * digit.  The digits are interpreted in base 10, and stored in a
+ * C `int`.
+ * @verbatim
+ * number = '-'? ( '0'..'9' )+
+ * @endverbatim
+ * @param parser			The parser.
+ * @return					The number or NULL on error.
+ */
+json_value * parse_number(Parser parser);
+
+/**
+ * Come here to parse a JSON object.  The first character in the stream is
+ * expected to be the opening curly brace for the object.  Objects can be
+ * empty.
+ * @verbatim
+ * object = '{' ( string '=' value ( ',' string '=' value )* )? '}'
+ * @endverbatim
+ * @param parser			The parser.
+ * @return					The object or NULL on error.
+ */
+json_value * parse_object(Parser parser);
+
+/**
+ * Come here to parse a JSON array.  The first character in the stream is
+ * expected to be the opening square bracket.  Arrays can be empty.
+ * @verbatim
+ * array = '[' ( value ( ',' value )* )? ']'
+ * @endverbatim
+ * @param parser			The parser.
+ * @return					The array or NULL on error.
+ */
+json_value * parse_array(Parser array);
+
+/**
+ * Provide a main method to test the JSON parser.
+ * @param argc				Number of arguments.
+ * @param argv				Arguments.
+ */
 int main(int argc, char * argv[]) {
 	// If a first argument is provided, it is the file name.  If no first
 	// argument is provided, then read from standard in.
@@ -77,9 +134,15 @@ int main(int argc, char * argv[]) {
 	}
 
 	// Now we have to read from the stream.  We read and parse JSON.
-	pParser parser = spsps_new(argv[1], input);
-	parse_value(parser);
-
+	Parser parser = spsps_new(argv[1], input);
+	json_value * value = parse_value(parser);
+	if (value != NULL) {
+		// Print the value!
+		json_stream(stdout, value, 0);
+		fprintf(stdout, "\n");
+		// Free the value!
+		json_free_value(value);
+	}
 	// Done.
 	if (argc > 1) {
 		fclose(input);
@@ -87,18 +150,8 @@ int main(int argc, char * argv[]) {
 	exit(0);
 }
 
-/**
- * Come here to read a JSON value from the stream.  Leading whitespace is
- * allowed.
- * @verbatim
- * value = string | number | object | array
- *       | "true" | "false" | "null"
- * @endverbatim
- * @param parser			The parser object.
- * @return					The parsed value, or NULL if an error occurs.
- */
 json_value *
-parse_value(pParser parser) {
+parse_value(Parser parser) {
 	// Allow whitespace here.
 	spsps_consume_whitespace(parser);
 
@@ -123,7 +176,7 @@ parse_value(pParser parser) {
 		if (spsps_peek_and_consume(parser, "true")) {
 			return json_new_boolean(true);
 		} else {
-			ERR(parser, "Saw a value starting with 't' and expected "
+			SPSPS_ERR(parser, "Saw a value starting with 't' and expected "
 					"true, but did not find that.  Did you forget to "
 					"quote a string?");
 			return NULL;
@@ -133,7 +186,7 @@ parse_value(pParser parser) {
 		if (spsps_peek_and_consume(parser, "false")) {
 			return json_new_boolean(false);
 		} else {
-			ERR(parser, "Saw a value starting with 'f' and expected "
+			SPSPS_ERR(parser, "Saw a value starting with 'f' and expected "
 					"false, but did not find that.  Did you forget to "
 					"quote a string?");
 			return NULL;
@@ -143,7 +196,7 @@ parse_value(pParser parser) {
 		if (spsps_peek_and_consume(parser, "null")) {
 			return json_new_null();
 		} else {
-			ERR(parser, "Saw a value starting with 'n' and expected "
+			SPSPS_ERR(parser, "Saw a value starting with 'n' and expected "
 					"null, but did not find that.  Did you forget to "
 					"quote a string?");
 			return NULL;
@@ -154,7 +207,7 @@ parse_value(pParser parser) {
 		if (isdigit(ch)) {
 			return parse_number(parser);
 		} else {
-			ERR(parser, "Expected to find a value, but instead found "
+			SPSPS_ERR(parser, "Expected to find a value, but instead found "
 					"unexpected character %s, which does not start a "
 					"value.  Did you forget to quote a string?", printify(ch));
 			return NULL;
@@ -162,9 +215,12 @@ parse_value(pParser parser) {
 	}
 }
 
-/* Private function to convert a character to a nibble.  If the character
+/**
+ * Private function to convert a character to a nibble.  If the character
  * is not a valid hex character (upper- or lower-case) then the return value
  * is 255.  Otherwise it is going to be in the range [0,15].
+ * @param ch				The character to convert.
+ * @return					The value.
  */
 char
 unhex_(char ch) {
@@ -179,24 +235,11 @@ unhex_(char ch) {
 	}
 }
 
-/**
- * Come here to parse a quoted string from the stream.  The stream must
- * be pointing to the open quotation mark.
- * @verbatim
- * string = '"' ( CHARACTER | ESCAPE )* '"'
- * @endverbatim
- * A `CHARACTER` is any character other than `\` and `"`.  An escape can
- * be any of `\r`, `\n`, `\t`, or a protected character like `\` and `"`.
- * It can also be used to join lines if it is the last character on a line,
- * and it can introduce an 8-bit hex escape (`\x0a`, for instance).
- * @param parser			The parser.
- * @return					The parsed string value, or NULL on error.
- */
 json_value *
-parse_string(pParser parser) {
+parse_string(Parser parser) {
 	// The first thing in the stream must be the quotation mark.
 	if (! spsps_peek_and_consume(parser, "\"")) {
-		ERR(parser, "Expected to find a quotation mark for a string, "
+		SPSPS_ERR(parser, "Expected to find a quotation mark for a string, "
 				"but instead found %s.", printify(spsps_peek(parser)));
 		return NULL;
 	}
@@ -230,12 +273,12 @@ parse_string(pParser parser) {
 				high = unhex_((char) highc);
 				low = unhex_((char) lowc);
 				if (high > 15) {
-					ERR(parser, "Expected to find two hexadecimal digits "
+					SPSPS_ERR(parser, "Expected to find two hexadecimal digits "
 							"in an escape (starting with \\x) but "
 							"instead found %s.", printify(highc));
 				}
 				if (low > 15) {
-					ERR(parser, "Expected to find two hexadecimal digits "
+					SPSPS_ERR(parser, "Expected to find two hexadecimal digits "
 							"in an escape (starting with \\x) but "
 							"instead found %s.", printify(lowc));
 				}
@@ -253,24 +296,13 @@ parse_string(pParser parser) {
 	return json_new_string(cstring);
 }
 
-/**
- * Come here to parse a number.  The first character in the stream is
- * expected to be the first character of the number.  This could be a
- * minus sign, or it could be a digit.  There must be at least one
- * digit.  The digits are interpreted in base 10, and stored in a
- * C `int`.
- * @verbatim
- * number = '-'? ( '0'..'9' )+
- * @endverbatim
- * @param parser			The parser.
- */
 json_value *
-parse_number(pParser parser) {
+parse_number(Parser parser) {
 	// Build the number by consuming the digits.
 	bool neg = spsps_peek_and_consume(parser, "-");
 	int value = 0;
 	if (! isdigit(spsps_peek(parser))) {
-		ERR(parser, "Expected to find a digit, but instead found %s.",
+		SPSPS_ERR(parser, "Expected to find a digit, but instead found %s.",
 				printify(spsps_peek(parser)));
 		return NULL;
 	}
@@ -283,85 +315,193 @@ parse_number(pParser parser) {
 }
 
 /**
- * Come here to parse a JSON object.  The first character in the stream is
- * expected to be the opening curly brace for the object.  Objects can be
- * empty.
- * @verbatim
- * object = '{' ( string '=' value )* '}'
- * @endverbatim
- * @param parser			The parser.
+ * Private function to deallocate an object.
+ * @param object			The object to deallocate.
  */
+void
+dealloc_object_(json_object * object) {
+	if (object == NULL) return;
+	for (size_t index = 0; index < MAP_SIZE; ++index) {
+		json_object_entry * entry = object->map[index];
+		json_object_entry * here = NULL;
+		while (entry != NULL) {
+			if (entry->key != NULL) {
+				free(entry->key);
+				entry->key = NULL;
+			}
+			if (entry->value != NULL) {
+				json_free_value(entry->value);
+				entry->value = NULL;
+			}
+			here = entry;
+			entry = here->next;
+			here->next = NULL;
+			free(here);
+		} // Deallocate all entries.
+		object->map[index] = NULL;
+	} // Deallocate everything in the map.
+	free(object);
+}
+
 json_value *
-parse_object(pParser parser) {
+parse_object(Parser parser) {
 	// Arrays start with a curly brace.
 	if (! spsps_peek_and_consume(parser, "{")) {
-		ERR(parser, "Expected to find the start of an object (a curly "
+		SPSPS_ERR(parser, "Expected to find the start of an object (a curly "
 				"brace), but instead found %s.", printify(spsps_peek(parser)));
 		return NULL;
 	}
-	// Now consume a sequence of string equal value pairs.
+	spsps_consume_whitespace(parser);
+	// Now consume a (potentially empty) comma-separated list of pairs.
 	json_object * object = NULL;
-	while (! spsps_eof(parser)) {
+	while (! spsps_eof(parser) && spsps_peek(parser) != '}') {
 		spsps_consume_whitespace(parser);
-		SPSPS_CHAR ch = spsps_peek(parser);
-		if (ch == '"') {
-			// Start of a pair.  Parse the string.
-			json_value * key = parse_string(parser);
-			spsps_consume_whitespace(parser);
-			// Expect an equal sign.
-			if (! spsps_peek_and_consume(parser, "=")) {
-				ERR(parser, "Expected to find an equal sign for a "
-						"string = value pair, but instead found %s.",
-						printify(spsps_peek(parser)));
-				return NULL;
-			}
-			spsps_consume_whitespace(parser);
-			// Expect a value.
-			json_value * value = parse_value(parser);
-		} else if (ch == '}') {
-			// End of object.
-			break;
-		} else {
-			ERR(parser, "Expected to find the start of a "
+		// Expect to find the start of a pair.
+		json_value * keyval = parse_string(parser);
+		if (keyval == NULL) {
+			SPSPS_ERR(parser, "Expected to find the start of a "
 					"string = value pair, or the end of the "
-					"object (a closing curly brace), but "
-					"instead found %s.", printify(ch));
+					"object (a closing curly brace).");
+			dealloc_object_(object);
 			return NULL;
 		}
-	} // Consume all pairs.
-	puts("object end");
+		spsps_consume_whitespace(parser);
+		// Extract the string and discard the rest.
+		char * key = strdup(keyval->content.strvalue);
+		json_free_value(keyval);
+		// Expect an equal sign.
+		if (! spsps_peek_and_consume(parser, "=")) {
+			SPSPS_ERR(parser, "Expected to find an equal sign for a "
+					"string = value pair, but instead found %s.",
+					printify(spsps_peek(parser)));
+			dealloc_object_(object);
+			return NULL;
+		}
+		spsps_consume_whitespace(parser);
+		// Get the value.
+		json_value * value = parse_value(parser);
+		if (value == NULL) {
+			SPSPS_ERR(parser, "Expected a value following the equal sign.");
+			dealloc_object_(object);
+			return NULL;
+		}
+		spsps_consume_whitespace(parser);
+		// Add the pair to the object.
+		object = json_object_insert(object, key, value);
+		// Look for a comma.
+		if (spsps_peek_and_consume(parser, ",")) {
+			// Found the comma.  This is good.
+		} else if (spsps_peek(parser) != '}') {
+			SPSPS_ERR(parser, "Expected to find either a comma or the "
+					"end of the object (a curly brace), but instead "
+					"found %s.  Did you forget a comma?",
+					printify(spsps_peek(parser)));
+			dealloc_object_(object);
+			return NULL;
+		}
+	} // Parse all pairs of the object.
+	// Consume the ending brace.
+	if (! spsps_peek_and_consume(parser, "}")) {
+		SPSPS_ERR(parser, "Expected to find a closing curly brace at "
+				"the end of the object, but instead found %s.",
+				printify(spsps_peek(parser)));
+		dealloc_object_(object);
+		return NULL;
+	}
+	// Package the object into a value.
+	json_value * ret = (json_value *) malloc(sizeof(json_value));
+	ret->kind = OBJECT;
+	ret->content.objectvalue = object;
+	return ret;
 }
 
 /**
- * Come here to parse a JSON array.  The first character in the stream is
- * expected to be the opening square bracket.  Arrays can be empty.
- * @verbatim
- * array = '[' ( value ( ',' value )* )? ']'
- * @endverbatim
- * @param parser				The parser.
+ * Private data structure to support creating an array.
+ */
+struct llist_ {
+	json_value * value;
+	struct llist_ * next;
+};
+
+/**
+ * Deallocate a linked list formed from the llist_ struct.
+ * @param list				The list to deallocate.  May be NULL.
  */
 void
-parse_array(pParser parser) {
+dealloc_list_(struct llist_ * list) {
+	struct llist_ * here;
+	if (list == NULL) return;
+	while (list != NULL) {
+		here = list->next;
+		if (list->value != NULL) json_free_value(list->value);
+		list->value = NULL;
+		list->next = NULL;
+		free(list);
+		list = here;
+	} // Deallocate the list.
+}
+
+json_value *
+parse_array(Parser parser) {
+	// We don't know how long the array is, so we have to read the array
+	// before we allocate it.  For this to work, we need a flexible way
+	// to store it.  We use a dirt-simple linked list.  Yay!
 	// Arrays start with a square bracket.
 	if (! spsps_peek_and_consume(parser, "[")) {
-		ERR(parser, "Expected to find the start of an array (a square "
+		SPSPS_ERR(parser, "Expected to find the start of an array (a square "
 				"bracket), but instead found %s.",
 				printify(spsps_peek(parser)));
-		return;
+		return NULL;
 	}
-	// Now consume a comma-separated list of items.
-	puts("array start");
+	// Now consume a comma-separated list of items.  We store this in a
+	// linked list.
+	struct llist_ * list = NULL, * here = NULL, * there = NULL;
+	size_t size = 0;
 	spsps_consume_whitespace(parser);
-	while (! spsps_eof(parser)) {
-		parse_value(parser);
-		spsps_consume_whitespace(parser);
-		if (spsps_peek_and_consume(parser, ",")) {
+	// Watch for an empty object.
+	if (! spsps_peek_and_consume(parser, "]")) {
+		while (! spsps_eof(parser)) {
+			json_value * value = parse_value(parser);
+			if (value == NULL) {
+				dealloc_list_(list);
+				return NULL;
+			}
+			there = (struct llist_ *) malloc(sizeof(struct llist_));
+			there->value = value;
+			there->next = NULL;
+			if (here != NULL) {
+				here->next = there;
+			} else {
+				list = there;
+			}
+			here = there;
+			++size;
 			spsps_consume_whitespace(parser);
-		} else if (spsps_peek_and_consume(parser, "]")) {
-			break;
-		}
-	} // Consume until closing square bracket.
-	puts("array end");
+			if (spsps_peek_and_consume(parser, ",")) {
+				spsps_consume_whitespace(parser);
+			} else if (spsps_peek_and_consume(parser, "]")) {
+				break;
+			} else {
+				SPSPS_ERR(parser, "Expected to find a comma or the end "
+						"of the array (right square bracket), but instead "
+						"found '%s'.  Did you forget a comma?",
+						printify(spsps_peek(parser)));
+				dealloc_list_(list);
+				return NULL;
+			}
+		} // Read all values in the list.
+	}
+	// Allocate the array.
+	json_value * value = json_new_array(size);
+	size = 0;
+	here = list;
+	while (here != NULL) {
+		json_set_array_element(value, size, here->value);
+		here->value = NULL;
+		here = here->next;
+		++size;
+	} // Store and deallocate the list.
+	return value;
 }
 
 void
@@ -371,16 +511,7 @@ json_free_value(json_value * value) {
 	switch (value->kind) {
 	case OBJECT:
 		// Free all pairs in the object.
-		object = value->content.objectvlaue;
-		for (int index = 0; index < MAP_SIZE; ++index) {
-			json_object_entry * entry = object->map[index];
-			while (entry != NULL) {
-				free(entry->key);
-				json_free_value(entry->value);
-				entry = entry->next;
-			} // Free all entries with this hash code.
-		} // Free all entries.
-		free(object);
+		dealloc_object_(value->content.objectvalue);
 		free(value);
 		break;
 	case ARRAY:
@@ -411,13 +542,13 @@ uint32_t
 hash_string_(unsigned char * str) {
 	uint32_t hash = 5381;
 	uint32_t ch;
-	for (uint32_t ch = *str; ch != 0; str++) {
+	for (; *str != '\0'; ++str) {
 		// Use shift to multiply by 32, then subtract once to get
 		// multiplication by 31... my favorite hash multiplier.
 		// No reason.  Then we add the character.  Note that this
 		// preserves some low bits from prior characters, so the
 		// effect of earlier characters never really washes out.
-		hash = (hash << 5) - hash + ch;
+		hash = (hash << 5) - hash + (uint32_t) *str;
 	} // Compute the hash over the string.
 	return hash;
 }
@@ -427,6 +558,9 @@ json_object_insert(json_object * object, char * key, json_value * value) {
 	if (object == NULL) {
 		// Allocate an object.
 		object = (json_object *) malloc(sizeof(json_object));
+		for (size_t index = 0; index < MAP_SIZE; ++index) {
+			object->map[index] = NULL;
+		} // Null out the map.
 	}
 	if (key == NULL) {
 		// The key is NULL.  Replace it with the empty string.
@@ -519,12 +653,26 @@ json_array_element(json_value * value, size_t index) {
 }
 
 json_value *
+json_set_array_element(json_value * value, size_t index, json_value * entry) {
+	if (value == NULL || value->kind != ARRAY) {
+		// There is no array.
+		return NULL;
+	}
+	json_array * array = value->content.arrayvalue;
+	if (index >= array->size) {
+		return NULL;
+	}
+	array->array[index] = entry;
+	return value;
+}
+
+json_value *
 json_get_entry(json_value * value, char * key) {
 	if (value == NULL || value->kind != OBJECT) {
 		return NULL;
 	}
 	if (key == NULL) return NULL;
-	json_object * object = value->content.objectvlaue;
+	json_object * object = value->content.objectvalue;
 	// Compute the hash code for the string.
 	uint32_t hash = hash_string_((unsigned char *) key) % MAP_SIZE;
 	// Get the map entry.
@@ -543,52 +691,64 @@ void
 json_stream(FILE * stream, json_value * value, int depth) {
 	if (stream == NULL) stream = stdout;
 	if (value == NULL) return;
-	switch (value->kind) {
 	if (depth > 0) {
 		for (int advance = 0; advance < depth; ++advance) {
 			fprintf(stream, "  ");
 		} // Indent.
 	}
+	switch (value->kind) {
 	case NOTHING:
-		fprintf(stream, "null\n");
+		fprintf(stream, "null");
 		break;
 	case BOOL:
-		fprintf(stream, value->content.boolvalue ? "true\n" : "false\n");
+		fprintf(stream, value->content.boolvalue ? "true" : "false");
 		break;
 	case NUMBER:
-		fprintf(stream, "%d\n", value->content.numvalue);
+		fprintf(stream, "%d", value->content.numvalue);
 		break;
 	case STRING:
 		fprintf(stream, "\"%s\"", value->content.strvalue);
 		break;
 	case ARRAY:
-		fprintf(stream, "[\n");
+		fprintf(stream, "[ \n");
 		for (int index = 0; index < value->content.arrayvalue->size; ++index) {
 			json_stream(stream, value->content.arrayvalue->array[index], depth+1);
+			if (index < value->content.arrayvalue->size - 1) fprintf(stream, ",\n");
+			else fprintf(stream, "\n");
 		} // Write all entries.
 		if (depth > 0) {
 			for (int advance = 0; advance < depth; ++advance) {
 				fprintf(stream, "  ");
 			} // Indent.
 		}
-		fprintf(stream, "]\n");
+		fprintf(stream, "]");
 		break;
 	case OBJECT:
-		fprintf(stream, "{\n");
-		for (int index = 0; index < MAP_SIZE; ++index) {
-			json_object_entry * entry = value->content.objectvlaue->map[index];
-			while (entry != NULL) {
-				fprintf(stream, "\"%s\" = ", entry->key);
-				json_stream(stream, entry->value, depth+1);
-				entry = entry->next;
-			} // Write all entries off this hash.
-		} // Write all entries.
+		fprintf(stream, "{ \n");
+		bool first = true;
+		json_object * object = value->content.objectvalue;
+		if (object != NULL) {
+			for (int index = 0; index < MAP_SIZE; ++index) {
+				json_object_entry * entry = value->content.objectvalue->map[index];
+				while (entry != NULL) {
+					if (first) first = false;
+					else fprintf(stream, ",\n");
+					for (int advance = 0; advance < depth; ++advance) {
+						fprintf(stream, "  ");
+					} // Indent.
+					fprintf(stream, "\"%s\" = ", entry->key);
+					json_stream(stream, entry->value, depth+1);
+					entry = entry->next;
+				} // Write all entries off this hash.
+			} // Write all entries.
+		}
+		fprintf(stream, "\n");
 		if (depth > 0) {
 			for (int advance = 0; advance < depth; ++advance) {
 				fprintf(stream, "  ");
 			} // Indent.
 		}
-		fprintf(stream, "}\n");
+		fprintf(stream, "}");
 		break;
 	}
 }

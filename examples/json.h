@@ -79,7 +79,7 @@ typedef union json_content_ {
 	char * strvalue;
 	bool boolvalue;
 	json_array * arrayvalue;
-	json_object * objectvlaue;
+	json_object * objectvalue;
 } json_content;
 
 /// A JSON value.
@@ -156,12 +156,25 @@ json_value * json_new_array(size_t size);
 /**
  * Obtain a pointer to an element of a JSON array.  If the element
  * does not exist, or the value given is not an array, then NULL is
- * returned, so watch for that.  The pointer allows the array to be
- * modified in-place.
+ * returned, so watch for that.
  * @param value			The JSON array.
  * @param index			The zero-based index of the element.
+ * @return				The array.
  */
 json_value * json_array_element(json_value * value, size_t index);
+
+/**
+ * Set an element in a JSON array.  If the element does not exist
+ * or the value given is not an array, then NULL is returned, so
+ * watch for that.  If the array has an element already at this
+ * position, then it is replaced, but NOT deallocated!  Be aware!
+ * @param value			The JSON array.
+ * @param index			The zero-based index of the element.
+ * @param entry			The entry to store.
+ * @return				The array.
+ */
+json_value * json_set_array_element(json_value * value, size_t index,
+		json_value * entry);
 
 /**
  * Obtain a pointer to an entry in a JSON object.  If the entry
@@ -187,6 +200,6 @@ void json_stream(FILE * stream, json_value * value, int depth);
  * @param parser		The parser.
  * @return				The next JSON value parsed.
  */
-void parse_value(pParser parser);
+json_value * parse_value(Parser parser);
 
 #endif /* JSON_H_ */
