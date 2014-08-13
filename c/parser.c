@@ -44,16 +44,27 @@
 //======================================================================
 
 struct spsps_parser_ {
+	/// Whether the parser has consumed the end of file.
 	bool at_eof;
+	/// The current zero-based block index.
 	uint8_t block;
+	/// The blocks.
 	SPSPS_CHAR blocks[2][SPSPS_LOOK];
+	/// How many times we have consumed the EOF.
 	uint16_t eof_count;
+	/// How many times we have peeked without consuming.
 	uint16_t look_count;
+	/// The name of the source.
 	char * name;
+	/// The next entry in the current block.
 	size_t next;
+	/// The stream providing characters.
 	FILE * stream;
+	/// The current column number.
 	uint32_t column;
+	/// The current line number.
 	uint32_t line;
+	/// The most recent error code.
 	spsps_errno errno;
 };
 
@@ -61,19 +72,46 @@ struct spsps_parser_ {
 // Primitives.
 //======================================================================
 
+char *
+spsps_loc_to_string(Loc * loc) {
+	if (loc == NULL) {
+		// Return something the caller can deallocate.
+		char * ret = (char *) malloc(1);
+		ret[0] = 0;
+		return ret;
+	}
+	// Generate the string.  An unsigned 32 bit integer can produce (with no
+	// bugs) a value up to 2^32-1.  This is 4*2^30-1, or roughly 4*10^9.  We
+	// allocate 12 digits for each number (which is sufficient), two for
+	// colons, and one for the terminating null.  This is 27.  We then add the
+	// strlen of the name.
+	size_t mlen = 27 + strlen(loc->name);
+	char * buf = (char *) malloc(mlen);
+	sprintf(buf, "%s:%d:%d", loc->name, loc->line, loc->column);
+	if (strlen(buf) > mlen) {
+		// This should never, never, never happen.
+		fprintf(stderr, "Internal error in loc string construction.\n");
+		exit(1);
+	}
+	return buf;
+}
+
 SPSPS_CHAR
-spsps_look_(pParser parser, size_t n) {
+spsps_look_(Parser parser, size_t n) {
+	// Allocation: Nothing is allocated or deallocated by this method.
 	if (n >= SPSPS_LOOK) {
 		// Lookahead too large.
 		parser->errno = LOOKAHEAD_TOO_LARGE;
 		return 0;
 	}
+	// If we look too long without progressing, the parser may be stalled.
 	parser->look_count++;
 	if (parser->look_count > 1000) {
 		// Stalled.
 		parser->errno = STALLED;
 		return SPSPS_EOF;
 	}
+	// Look in the correct block.
 	if (n + parser->next < SPSPS_LOOK) {
 		return parser->blocks[parser->block][n + parser->next];
 	} else {
@@ -82,7 +120,8 @@ spsps_look_(pParser parser, size_t n) {
 }
 
 void
-spsps_read_other_(pParser parser) {
+spsps_read_other_(Parser parser) {
+	// Allocation: Nothing is allocated or deallocated by this method.
 	size_t count = fread(parser->blocks[parser->block^1], sizeof(SPSPS_CHAR),
 		SPSPS_LOOK, parser->stream);
 	if (count < SPSPS_LOOK) {
@@ -101,9 +140,10 @@ spsps_read_other_(pParser parser) {
 // Implementation of public interface.
 //======================================================================
 
-pParser
+Parser
 spsps_new(char * name, FILE * stream) {
-	pParser parser = (pParser) malloc(sizeof(struct spsps_parser_));
+	// Allocate a new parser.  Duplicate the name.
+	Parser parser = (Parser) malloc(sizeof(struct spsps_parser_));
 	parser->at_eof = false;
 	parser->block = 0;
 	parser->eof_count = 0;
@@ -120,7 +160,8 @@ spsps_new(char * name, FILE * stream) {
 }
 
 void
-spsps_free(pParser parser) {
+spsps_free(Parser parser) {
+	// Free the parser name and the parser itself.
 	free(parser->name);
 	parser->at_eof = true;
 	parser->name = NULL;
@@ -129,7 +170,8 @@ spsps_free(pParser parser) {
 }
 
 SPSPS_CHAR
-spsps_consume(pParser parser) {
+spsps_consume(Parser parser) {
+	// Nothing is allocated or deallocated by this method.
 	SPSPS_CHAR ch = parser->blocks[parser->block][parser->next];
 	spsps_consume_n(parser, 1);
 	parser->errno = OK;
@@ -137,7 +179,8 @@ spsps_consume(pParser parser) {
 }
 
 void
-spsps_consume_n(pParser parser, size_t n) {
+spsps_consume_n(Parser parser, size_t n) {
+	// Nothing is allocated or deallocated by this method.
 	if (n >= SPSPS_LOOK) {
 		// Lookahead too large.
 		parser->errno = LOOKAHEAD_TOO_LARGE;
@@ -173,22 +216,25 @@ spsps_consume_n(pParser parser, size_t n) {
 }
 
 void
-spsps_consume_whitespace(pParser parser) {
+spsps_consume_whitespace(Parser parser) {
+	// Nothing is allocated or deallocated by this method.
 	while (strchr(" \t\r\n", spsps_peek(parser)) != NULL)
 		spsps_consume(parser);
 	parser->errno = OK;
 }
 
 bool
-spsps_eof(pParser parser) {
+spsps_eof(Parser parser) {
+	// Nothing is allocated or deallocated by this method.
 	parser->errno = OK;
 	return parser->at_eof;
 }
 
-pLoc
-spsps_loc(pParser parser) {
+Loc *
+spsps_loc(Parser parser) {
+	// A loc instance is allocated by this method.
 	parser->errno = OK;
-	pLoc loc = (pLoc) malloc(sizeof(struct spsps_loc_));
+	Loc * loc = (Loc *) malloc(sizeof(struct spsps_loc_));
 	loc->name = parser->name;
 	loc->line = parser->line;
 	loc->column = parser->column;
@@ -196,13 +242,15 @@ spsps_loc(pParser parser) {
 }
 
 SPSPS_CHAR
-spsps_peek(pParser parser) {
+spsps_peek(Parser parser) {
+	// Nothing is allocated or deallocated by this method.
 	parser->errno = OK;
 	return spsps_look_(parser, 0);
 }
 
 char *
-spsps_peek_n(pParser parser, size_t n) {
+spsps_peek_n(Parser parser, size_t n) {
+	// Allocates and returns a fixed-length string.
 	if (n >= SPSPS_LOOK) {
 		// Lookahead too large.
 		parser->errno = LOOKAHEAD_TOO_LARGE;
@@ -217,7 +265,8 @@ spsps_peek_n(pParser parser, size_t n) {
 }
 
 bool
-spsps_peek_str(pParser parser, char * next) {
+spsps_peek_str(Parser parser, char * next) {
+	// Nothing is allocated or deallocated by this method.
 	size_t n = strlen(next);
 	if (n >= SPSPS_LOOK) {
 		// Lookahead too large.
@@ -232,7 +281,8 @@ spsps_peek_str(pParser parser, char * next) {
 }
 
 bool
-spsps_peek_and_consume(pParser parser, char * next) {
+spsps_peek_and_consume(Parser parser, char * next) {
+	// Nothing is allocated or deallocated by this method.
 	parser->errno = OK;
 	if (spsps_peek_str(parser, next)) {
 		spsps_consume_n(parser, strlen(next));
