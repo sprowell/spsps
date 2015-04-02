@@ -1,0 +1,38 @@
+/**
+@mainpage Stacy's Pathetically Simple Parsing System (SPSPS)
+
+This is a little project to create three things:
+
+  - A nice string implementation for both mutable (time-efficient) and immutable (space-efficient) strings.
+  - A simple framework for creating recursive-descent parsers.
+  - A parser and data structures for JSON.
+
+These are all being written in straight ANSI C (not C++).  Why C?  Well, many embedded platforms still rely on C, and also, why not?  See an answer to the question of why someone might want to use C [here][why-c].
+
+@anchor xstr_build
+# Building
+This requires [CMake][cmake] to build.  If you want to build the documentation then you will also need [Doxygen][doxygen].
+
+To build, run `cmake` in the root directory, and then you can build everything (except the documentation) with `make` and you can build the documentation with `make doc`.
+
+On my Mac and under Linux:
+
+<code>
+  cmake -G 'Unix Makefiles'
+  make
+  make doc
+</code>
+
+On Windows you should do whatever is the Windows equivalent.  I think it is something like:
+
+<code>
+  cmake .
+  make
+  make doc
+</code>
+
+Want an out-of-source build?  Something else?  Read the documentation for CMake and have fun!
+
+[cmake]: http://www.cmake.org
+[why-c]: http://stackoverflow.com/questions/497786/why-would-anybody-use-c-over-c
+[doxygen]: http://www.stack.nl/~dimitri/doxygen/

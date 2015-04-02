@@ -288,7 +288,7 @@ xstring xstr_append_f(xstring value, xchar ch);
  * @param cstr			The string to append.
  * @return				The input string, modified.
  */
-xstring xstr_append_cstr(xstring value, xchar * cstr);
+xstring xstr_append_cstr(xstring value, char * cstr);
 
 /**
  * Append a C string to the end of the given xstring.  The
@@ -298,7 +298,7 @@ xstring xstr_append_cstr(xstring value, xchar * cstr);
  * @param cstr			The string to append.
  * @return				The input string, modified.
  */
-xstring xstr_append_cstr_f(xstring value, xchar * cstr);
+xstring xstr_append_cstr_f(xstring value, char * cstr);
 
 /**
  * Append a C string to the end of the given mstring.  The
@@ -308,7 +308,7 @@ xstring xstr_append_cstr_f(xstring value, xchar * cstr);
  * @param cstr			The string to append.
  * @return				The input string, modified.
  */
-mstring mstr_append_cstr(mstring value, xchar * cstr);
+mstring mstr_append_cstr(mstring value, char * cstr);
 
 /**
  * Append a C string to the end of the given mstring.  The
@@ -318,7 +318,7 @@ mstring mstr_append_cstr(mstring value, xchar * cstr);
  * @param cstr			The string to append.
  * @return				The input string, modified.
  */
-mstring mstr_append_cstr_f(mstring value, xchar * cstr);
+mstring mstr_append_cstr_f(mstring value, char * cstr);
 
 /**
  * Concatenate two strings.  The second string is appended to the
@@ -407,6 +407,19 @@ mstring mstr_substr(mstring value, size_t start, size_t num);
 xstring xstr_substr_f(xstring value, size_t start, size_t num);
 
 /**
+ * Extract a substring from the given string.  The substring can
+ * be empty.  If the start position is out of the string's range,
+ * or the number of characters is too large, or both, then the
+ * returned string is padded with null characters (0).  The input
+ * string is explicitly deallocated.
+ * @param value			The string.
+ * @param start			The zero-based index of the first character.
+ * @param num			The number of characters to extract.
+ * @return				The requested substring.
+ */
+mstring mstr_substr_f(mstring value, size_t start, size_t num);
+
+/**
  * Compare two strings.  The return value is the standard C
  * comparison.  The value is negative iff lhs is less than
  * rhs.  The value is zero iff they are equal.  The value is
@@ -480,5 +493,23 @@ wchar_t * xstr_wcstr(xstring value);
  * @return				The null-terminated array of wide characters.
  */
 wchar_t * xstr_wcstr_f(xstring value);
+
+/**
+ * Convert a string into a C null-terminated wide character array and
+ * return it.  The caller is responsible for freeing the returned
+ * string.
+ * @param value			The string.
+ * @return				The null-terminated array of wide chars.
+ */
+wchar_t * mstr_wcstr(mstring value);
+
+/**
+ * Convert a string into a C null-terminated wide character array and
+ * return it.  The caller is responsible for freeing the returned
+ * string.  The input string is explicitly deallocated.
+ * @param value			The string.
+ * @return				The null-terminated array of wide chars.
+ */
+wchar_t * mstr_wcstr_f(mstring value);
 
 #endif /* XSTRING_H_ */

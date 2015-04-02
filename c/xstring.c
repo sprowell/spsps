@@ -88,13 +88,15 @@ mstr_inspect(mstring str) {
 	printf("Inspecting mstring:\n");
 	while (str != NULL) {
 		printf("  mstring {\n");
+		printf("     sizeof(xchar) = %lu\n", sizeof(xchar));
 		printf("    local_capacity = %lu\n", str->local_capacity);
 		printf("      local_length = %lu\n", str->local_length);
 		printf("            length = %lu\n", str->length);
 		printf("              cstr = [");
 		int count = 16;
-		for (int index = 0; index < str->local_length; ++index) {
-			unsigned char ch = str->cstr[index];
+		size_t truelength = sizeof(xchar) * str->local_length;
+		for (int index = 0; index < truelength; ++index) {
+			unsigned char ch = * ((unsigned char *) str->cstr + index);
 			if (isprint(ch)) {
 				printf("%02x (%1c),", ch, ch);
 			} else {
@@ -112,8 +114,9 @@ mstr_inspect(mstring str) {
 		}
 		printf("/* local_length boundary */");
 		printf("\n                      ");
-		for (int index = str->local_length; index < str->local_capacity; ++index) {
-			unsigned char ch = str->cstr[index];
+		size_t fulllength = sizeof(xchar) * str->local_capacity;
+		for (int index = truelength; index < fulllength; ++index) {
+			unsigned char ch = * ((unsigned char *) str->cstr + index);
 			if (isprint(ch)) {
 				printf("%02x (%1c),", ch, ch);
 			} else {
@@ -612,7 +615,7 @@ mstr_substr(mstring value, size_t start, size_t num) {
 		value = value->next;
 	} // Find the block containing the start position.
 	// Extract the desired characters.
-	char * here = str->cstr;
+	xchar * here = str->cstr;
 	while (flen > 0) {
 		// We are copying from this block.  Figure out the number of
 		// characters available in this block.
@@ -636,6 +639,13 @@ xstring
 xstr_substr_f(xstring value, size_t start, size_t num) {
 	xstring ret = xstr_substr(value, start, num);
 	xstr_free(value);
+	return ret;
+}
+
+mstring
+mstr_substr_f(mstring value, size_t start, size_t num) {
+	mstring ret = mstr_substr(value, start, num);
+	mstr_free(value);
 	return ret;
 }
 
@@ -793,10 +803,22 @@ mstr_cstr(mstring value) {
 	}
 	char * cstr = (char *) malloc(value->length + 1);
 	mstring here = value;
-	xchar * there = cstr;
+	char * there = cstr;
+	int simple = (sizeof(xchar) == sizeof(char));
 	while (here != NULL) {
-		if (here->cstr != NULL)
-			memcpy(there, here->cstr, here->local_length * sizeof(char));
+		if (here->cstr != NULL) {
+			// For performance handle the special case that the user is
+			// using chars.
+			if (simple) {
+				memcpy(there, here->cstr, here->local_length);
+			} else {
+				// We have to copy so each character is downconverted to a
+				// simple char.
+				for (size_t index = 0; index < here->local_length; ++index) {
+					there[index] = (char) here->cstr[index];
+				} // Convert and copy all characters.
+			}
+		}
 		there += here->local_length;
 		here = here->next;
 	} // Copy all blocks to the new string.
@@ -841,5 +863,42 @@ wchar_t *
 xstr_wcstr_f(xstring value) {
 	wchar_t * ret = xstr_wcstr(value);
 	xstr_free(value);
+	return ret;
+}
+
+wchar_t *
+mstr_wcstr(mstring value) {
+	if (value == NULL || value->length == 0) {
+		// We have to return an array the caller can free.
+		wchar_t * empty = (wchar_t *) malloc(sizeof(wchar_t));
+		empty[0] = 0;
+		return empty;
+	}
+	wchar_t * wcstr = (wchar_t *) malloc(sizeof(wchar_t) * (value->length + 1));
+	mstring here = value;
+	wchar_t * there = wcstr;
+	int simple = (sizeof(xchar) == sizeof(wchar_t));
+	while (here != NULL) {
+		if (here->cstr != NULL) {
+			if (simple) {
+				memcpy(there, here->cstr, here->local_length * sizeof(wchar_t));
+			} else {
+				for (size_t index = 0; index < here->local_length; ++index) {
+					there[index] = (wchar_t) here->cstr[index];
+				} // Copy and convert all characters.
+			}
+		}
+		there += here->local_length;
+		here = here->next;
+	} // Copy all blocks to the new string.
+	// Null terminate.
+	wcstr[value->length] = 0;
+	return wcstr;
+}
+
+wchar_t *
+mstr_wcstr_f(mstring value) {
+	wchar_t * ret = mstr_wcstr(value);
+	mstr_free(value);
 	return ret;
 }
