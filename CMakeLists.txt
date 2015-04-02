@@ -43,3 +43,22 @@ target_link_libraries( json spsps )
 add_executable( string_test test/string_test.c )
 target_link_libraries( string_test spsps )
 
+# Add a documentation target.  First we have to find doxygen.
+find_program( doxygen_path doxygen PATHS ENV PATH NO_DEFAULT_PATH )
+if( doxygen_path )
+    set( doc_path "${CMAKE_CURRENT_BINARY_DIR}/doc/api" )
+    message( "Found Doxygen at ${doxygen_path}." )
+    message( "Writing API documentation to ${doc_path}" )
+    FILE( MAKE_DIRECTORY "${doc_path}" )
+    add_custom_target(
+        doc
+        ${doxygen_path} ${CMAKE_CURRENT_SOURCE_DIR}/spsps.doxyfile
+        working_directory ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+else( doxygen_path )
+    message( "WARNING: Doxygen not found; not generating documentation." )
+    add_custom_target(
+        doc
+        echo "WARNING: Doxygen not found; not generating documentation."
+    )
+endif( doxygen_path )
