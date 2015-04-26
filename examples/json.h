@@ -75,7 +75,7 @@ typedef struct json_array_ {
 
 /// The content of a JSON value.
 typedef union json_content_ {
-	int numvalue;
+	double numvalue;
 	char * strvalue;
 	bool boolvalue;
 	json_array * arrayvalue;
@@ -135,7 +135,7 @@ json_value * json_new_null();
  * @param number		The value.
  * @return				The new JSON value.
  */
-json_value * json_new_number(int number);
+json_value * json_new_number(double number);
 
 /**
  * Make and return a new JSON string value.  The string is stored here,

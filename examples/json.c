@@ -38,12 +38,12 @@
 #include "parser.h"
 #include "json.h"
 #include "xstring.h"
-#include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#include <math.h>
 
 SPSPS_CHAR chbuf[15]; // U+002e (.)
-char * printify(unsigned SPSPS_CHAR ch) {
+char * printify(SPSPS_CHAR xch) {
+	unsigned SPSPS_CHAR ch = (unsigned SPSPS_CHAR) xch;
 	if (isprint(ch)) {
 		sprintf(chbuf, "U+%04x (%1c)", ch, ch);
 	} else {
@@ -56,7 +56,7 @@ char * printify(unsigned SPSPS_CHAR ch) {
  * Come here to read a JSON value from the stream.  Leading whitespace is
  * allowed.
  * @verbatim
- * value = string | number | object | array
+ * value = string | number | double | object | array
  *       | "true" | "false" | "null"
  * @endverbatim
  * @param parser			The parser object.
@@ -87,6 +87,7 @@ json_value * parse_string(Parser parser);
  * C `int`.
  * @verbatim
  * number = '-'? ( '0'..'9' )+
+ * double = n
  * @endverbatim
  * @param parser			The parser.
  * @return					The number or NULL on error.
@@ -96,9 +97,9 @@ json_value * parse_number(Parser parser);
 /**
  * Come here to parse a JSON object.  The first character in the stream is
  * expected to be the opening curly brace for the object.  Objects can be
- * empty.
+ * empty.  You can use either a colon or an equal sign.
  * @verbatim
- * object = '{' ( string '=' value ( ',' string '=' value )* )? '}'
+ * object = '{' ( string ( '=' | ':' ) value ( ',' string '=' value )* )? '}'
  * @endverbatim
  * @param parser			The parser.
  * @return					The object or NULL on error.
@@ -162,16 +163,12 @@ parse_value(Parser parser) {
 	switch (ch) {
 	case '"':
 		return parse_string(parser);
-		break;
 	case '-':
 		return parse_number(parser);
-		break;
 	case '{':
 		return parse_object(parser);
-		break;
 	case '[':
 		return parse_array(parser);
-		break;
 	case 't':
 		if (spsps_peek_and_consume(parser, "true")) {
 			return json_new_boolean(true);
@@ -181,7 +178,6 @@ parse_value(Parser parser) {
 					"quote a string?");
 			return NULL;
 		}
-		break;
 	case 'f':
 		if (spsps_peek_and_consume(parser, "false")) {
 			return json_new_boolean(false);
@@ -191,7 +187,6 @@ parse_value(Parser parser) {
 					"quote a string?");
 			return NULL;
 		}
-		break;
 	case 'n':
 		if (spsps_peek_and_consume(parser, "null")) {
 			return json_new_null();
@@ -201,7 +196,6 @@ parse_value(Parser parser) {
 					"quote a string?");
 			return NULL;
 		}
-		break;
 	default:
 		// Check for a digit.
 		if (isdigit(ch)) {
@@ -296,20 +290,52 @@ parse_string(Parser parser) {
 	return json_new_string(cstring);
 }
 
+int
+parse_integer_(Parser parser, int *digits) {
+	*digits = 0;
+	if (! isdigit(spsps_peek(parser))) {
+		SPSPS_ERR(parser, "Expected to find a digit, but instead found %s.",
+				  printify(spsps_peek(parser)));
+		return 0;
+	}
+	int value = 0;
+	while (isdigit(spsps_peek(parser))) {
+		value *= 10;
+		value += spsps_consume(parser) - '0';
+		*digits += 1;
+	} // Parse all digits.
+	return value;
+}
+
 json_value *
 parse_number(Parser parser) {
 	// Build the number by consuming the digits.
 	bool neg = spsps_peek_and_consume(parser, "-");
-	int value = 0;
-	if (! isdigit(spsps_peek(parser))) {
-		SPSPS_ERR(parser, "Expected to find a digit, but instead found %s.",
-				printify(spsps_peek(parser)));
-		return NULL;
+	double value = 0.0;
+	// Consume the integer portion of the number.  There must be a digit.
+	int digits = 0;
+	value = (double) parse_integer_(parser, &digits);
+	// See what the next character is.
+	if (spsps_peek_and_consume(parser, ".")) {
+		// We have found a fractional part.  Parse it.
+		double fracpart = (double) parse_integer_(parser, &digits);
+		value += fracpart / pow(10, digits);
 	}
-	while (isdigit(spsps_peek(parser))) {
-		value *= 10;
-		value += spsps_consume(parser) - '0';
-	} // Consume all digits.
+	if (spsps_peek_and_consume(parser, "E") || spsps_peek_and_consume(parser, "e")) {
+		// We have found an exponent part.  Parse it.
+		SPSPS_CHAR ch = spsps_peek(parser);
+		bool negexp = false;
+		if (ch == '-') {
+			negexp = true;
+			spsps_consume(parser);
+		} else if (ch == '+') {
+			spsps_consume(parser);
+		}
+		double exppart = (double) parse_integer_(parser, &digits);
+		if (negexp) exppart = -exppart;
+		value *= pow(10, exppart);
+	}
+	// Now possibly negate the number.
 	if (neg) value = -value;
 	return json_new_number(value);
 }
@@ -369,10 +395,11 @@ parse_object(Parser parser) {
 		// Extract the string and discard the rest.
 		char * key = strdup(keyval->content.strvalue);
 		json_free_value(keyval);
-		// Expect an equal sign.
-		if (! spsps_peek_and_consume(parser, "=")) {
-			SPSPS_ERR(parser, "Expected to find an equal sign for a "
-					"string = value pair, but instead found %s.",
+		// Expect an equal sign or a colon.
+		if (! spsps_peek_and_consume(parser, "=") &&
+			! spsps_peek_and_consume(parser, ":")) {
+			SPSPS_ERR(parser, "Expected to find an equal sign or a colon for "
+					"a string = value pair, but instead found %s.",
 					printify(spsps_peek(parser)));
 			dealloc_object_(object);
 			return NULL;
@@ -613,7 +640,7 @@ json_new_null() {
 }
 
 json_value *
-json_new_number(int number) {
+json_new_number(double number) {
 	json_value * value = (json_value *) malloc(sizeof(json_value));
 	value->kind = NUMBER;
 	value->content.numvalue = number;
@@ -704,7 +731,7 @@ json_stream(FILE * stream, json_value * value, int depth) {
 		fprintf(stream, value->content.boolvalue ? "true" : "false");
 		break;
 	case NUMBER:
-		fprintf(stream, "%d", value->content.numvalue);
+		fprintf(stream, "%g", value->content.numvalue);
 		break;
 	case STRING:
 		fprintf(stream, "\"%s\"", value->content.strvalue);
