@@ -115,7 +115,7 @@ mstr_inspect(mstring str) {
 		printf("/* local_length boundary */");
 		printf("\n                      ");
 		size_t fulllength = sizeof(xchar) * str->local_capacity;
-		for (int index = truelength; index < fulllength; ++index) {
+		for (size_t index = truelength; index < fulllength; ++index) {
 			unsigned char ch = * ((unsigned char *) str->cstr + index);
 			if (isprint(ch)) {
 				printf("%02x (%1c),", ch, ch);
@@ -371,18 +371,27 @@ mstr_append(mstring value, xchar ch) {
 		return str;
 	} else {
 		// Find the last block of the string, since that is where
-		// we need to append.
-		value->length++;
+		// we need to append.  As we move along we increment the
+		// length at each block.  Every block's length has been
+		// incremented, except the last one.
 		mstring here = value;
-		while (here->next != NULL) here = here->next;
+		while (here->next != NULL) {
+			here->length++;
+			here = here->next;
+		} // Find the end of the strings block list.
 		if (here->local_length >= value->local_capacity) {
-			// We have to create a new block at this point.
+			// We have to create a new block at this point.  Again,
+			// we increment the length at the newly-full block but
+			// the last block's length has not been incremented.
 			here->next = mstr_new(0);
+			here->length++;
 			here = here->next;
 		}
+		// Now add the character to the buffer, and increment the
+		// length here.
 		here->cstr[here->local_length] = ch;
 		here->local_length += 1;
-		here->length += 1;
+		here->length++;
 		return value;
 	}
 }
