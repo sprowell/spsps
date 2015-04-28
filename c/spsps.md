@@ -14,19 +14,19 @@ To build, run `cmake` in the root directory, and then you can build everything (
 
 On my Mac and under Linux:
 
-<code>
-  cmake -G 'Unix Makefiles'
-  make
-  make doc
-</code>
+```
+cmake -G 'Unix Makefiles'
+make
+make doc
+```
 
 On Windows you should do whatever is the Windows equivalent.  I think it is something like:
 
-<code>
-  cmake .
-  make
-  make doc
-</code>
+```
+cmake .
+make
+make doc
+```
 
 Want an out-of-source build?  Something else?  Read the documentation for CMake and have fun!
 
@@ -41,53 +41,53 @@ To use the string library, just `#include "xstring.h"` and link with the `spsps`
 
 `NULL` is perfectly valid `mstring` and `xstring` value (the empty string).  In fact, the library prefers to avoid allocation until it is necessary.  All library functions accept `NULL` as a string value.
 
-<code c>
-	#include "xstring.h"
-	int main(int argc, char * argv[]) {
-		xstring str = NULL;
-		printf("The length of the empty string is %lu.\n", xstr_length(str));
-		str = xstr_concat(NULL, NULL);
-		if (str == NULL) {
-			printf("The empty string is NULL.\n");
-		}
-		// Does nothing in this case, but a good defensive tactic.
-		xstr_free(str);
+```c
+#include "xstring.h"
+int main(int argc, char * argv[]) {
+	xstring str = NULL;
+	printf("The length of the empty string is %lu.\n", xstr_length(str));
+	str = xstr_concat(NULL, NULL);
+	if (str == NULL) {
+		printf("The empty string is NULL.\n");
 	}
-</code>
+	// Does nothing in this case, but a good defensive tactic.
+	xstr_free(str);
+}
+```
 
 **You can use other character types.**
 
 The characters of the strings can be of type `char`, or they can be of some other type, such as `wchar_t`, or even `uint32_t`, if you like.  They are converted to and from `char` values if necessary.  To use something other than `char`, `#define` the macro `SPSPS_CHAR` to the type you want before including the header file.  For example:
 
-<code c>
-	#include <wchar.h>
-	#include <stdlib.h>
-	#define SPSPS_CHAR wchar_t
-	#include "xstring.h"
-	int main(int argc, char * argv[]) {
-		xstring first = xstr_wwrap(L"¡Buenos días, mundo!");
-		wchar_t * str = xstr_wcstr_f(first);
-		wprintf(L"%ls\n", str);
-		free(str);
-	}
-</code>
+```c
+#include <wchar.h>
+#include <stdlib.h>
+#define SPSPS_CHAR wchar_t
+#include "xstring.h"
+int main(int argc, char * argv[]) {
+	xstring first = xstr_wwrap(L"¡Buenos días, mundo!");
+	wchar_t * str = xstr_wcstr_f(first);
+	wprintf(L"%ls\n", str);
+	free(str);
+}
+```
 
 **Functions are prefixed with the kind of string they take.**
 
 The functions for working with instances of `xstring` start with `xstr_`, while the functions for working with instances of `mstring` start with `mstr_`.
 
-<code c>
-	#include <wchar.h>
-	#include <stdlib.h>
-	#define SPSPS_CHAR wchar_t
-	#include "xstring.h"
-	int main(int argc, char * argv[]) {
-		mstring first = mstr_wwrap(L"¡Buenos días, mundo!");
-		wchar_t * str = mstr_wcstr_f(first);
-		wprintf(L"%ls\n", str);
-		free(str);
-	}
-</code>
+```c
+#include <wchar.h>
+#include <stdlib.h>
+#define SPSPS_CHAR wchar_t
+#include "xstring.h"
+int main(int argc, char * argv[]) {
+	mstring first = mstr_wwrap(L"¡Buenos días, mundo!");
+	wchar_t * str = mstr_wcstr_f(first);
+	wprintf(L"%ls\n", str);
+	free(str);
+}
+```
 
 **Strings are non-trivial.  You can't just call `free` on them.**
 
@@ -103,45 +103,45 @@ Some methods end with `_f`.  Those free their arguments automatically, so pay at
 
 The following short program should compile and run with no memory leaks.  Only the final null-terminated string has to be explicitly deallocated.
 
-<code c>
-	#include <stdlib.h>
-	#include "xstring.h"
-	int main(int argc, char * argv[]) {
-		char * val;
-		xstring first = xstr_wrap("Hello ");
-		xstring second = xstr_wrap("xstring ");
-		xstring third = xstr_wrap("world!");
-		first = xstr_concat_f(first, second);
-		first = xstr_concat_f(first, third);
-		val = xstr_cstr_f(first);
-		puts(val);
-		free(val);
-	}
-</code>
+```c
+#include <stdlib.h>
+#include "xstring.h"
+int main(int argc, char * argv[]) {
+	char * val;
+	xstring first = xstr_wrap("Hello ");
+	xstring second = xstr_wrap("xstring ");
+	xstring third = xstr_wrap("world!");
+	first = xstr_concat_f(first, second);
+	first = xstr_concat_f(first, third);
+	val = xstr_cstr_f(first);
+	puts(val);
+	free(val);
+}
+```
 
 **The library is really easy to use.**
 
 The really, really, really quick guide in the form of just one more example.  This uses `mstring` instances, since they allocate in chunks.
 
-<code c>
-	// Use wide characters.
-	#include <stdlib.h>
-	#define SPSPS_CHAR wchar_t
-	#include "xstring.h"
-	int main(int argc, char * argv[]) {
-		// Use mstrings to concatenate all the arguments.
-		wchar_t * val;
-		mstring str = NULL;
-		for (int index = 0; index < argc; ++index) {
-			str = mstr_append_cstr(str, argv[index]);
-			str = mstr_append(str, L' ');
-		} // Add all the strings.
-		// Print the result.
-		val = mstr_wcstr_f(str);
-		wprintf(L"%ls\n", val);
-		free(val);
-	}
-</code>
+```c
+// Use wide characters.
+#include <stdlib.h>
+#define SPSPS_CHAR wchar_t
+#include "xstring.h"
+int main(int argc, char * argv[]) {
+	// Use mstrings to concatenate all the arguments.
+	wchar_t * val;
+	mstring str = NULL;
+	for (int index = 0; index < argc; ++index) {
+		str = mstr_append_cstr(str, argv[index]);
+		str = mstr_append(str, L' ');
+	} // Add all the strings.
+	// Print the result.
+	val = mstr_wcstr_f(str);
+	wprintf(L"%ls\n", val);
+	free(val);
+}
+```
 
 ## SPSPS
 
