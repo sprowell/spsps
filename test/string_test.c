@@ -292,6 +292,11 @@ void raw_test() {
 	} // Countdown loop.
 	mstr_append_cstr(m1, " Done!");
 	mstring m2 = mstr_wrap("Counting down:9876543210 Done!");
+	if (mstr_length(m1) != mstr_length(m2)) {
+		ERR("Append generated the wrong length of string.\n"
+			"  --> Expected: %ld\n"
+			"  --> Got: %ld", mstr_length(m1), mstr_length(m2));
+	}
 	if (mstr_strcmp(m1, m2) != 0) {
 		char * cm1 = mstr_cstr(m1);
 		char * cm2 = mstr_cstr(m2);
