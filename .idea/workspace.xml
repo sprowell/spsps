@@ -15,11 +15,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7ffa9919-5a39-4f1a-81ba-3d6a2d2cb175" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/c/mainpage.dox" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/c/xstring.dox" afterPath="" />
-      <change type="MOVED" beforePath="$PROJECT_DIR$/c/spsps.md" afterPath="$PROJECT_DIR$/README.md" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/spsps.doxyfile" afterPath="$PROJECT_DIR$/spsps.doxyfile" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/test/string_test.c" afterPath="$PROJECT_DIR$/test/string_test.c" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/README.md" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/examples/json.h" afterPath="$PROJECT_DIR$/examples/json.h" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/c/parser.h" afterPath="$PROJECT_DIR$/c/parser.h" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/c/xstring.h" afterPath="$PROJECT_DIR$/c/xstring.h" />
     </list>
     <ignored path="spsps.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -40,16 +39,26 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="README.md" pinned="false" current-in-tab="true">
+      <file leaf-file-name="README.md" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/README.md">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="3.8865097">
-              <caret line="121" column="19" selection-start-line="121" selection-start-column="19" selection-end-line="121" selection-end-column="19" />
+            <state vertical-scroll-proportion="-9.379311">
+              <caret line="142" column="109" selection-start-line="142" selection-start-column="109" selection-end-line="142" selection-end-column="109" />
               <folding />
             </state>
           </provider>
           <provider editor-type-id="MarkdownPreviewEditor">
             <state />
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="parser.h" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/c/parser.h">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="3.0544355">
+              <caret line="111" column="58" selection-start-line="111" selection-start-column="58" selection-end-line="111" selection-end-column="58" />
+              <folding />
+            </state>
           </provider>
         </entry>
       </file>
@@ -68,6 +77,9 @@
         <option value="$PROJECT_DIR$/c/spsps.md" />
         <option value="$PROJECT_DIR$/c/mainpage.dox" />
         <option value="$PROJECT_DIR$/README.md" />
+        <option value="$PROJECT_DIR$/c/parser.h" />
+        <option value="$PROJECT_DIR$/c/xstring.h" />
+        <option value="$PROJECT_DIR$/examples/json.h" />
       </list>
     </option>
   </component>
@@ -82,6 +94,22 @@
     <option name="y" value="22" />
     <option name="width" value="1440" />
     <option name="height" value="874" />
+  </component>
+  <component name="ProjectInspectionProfilesVisibleTreeState">
+    <entry key="Project Default">
+      <profile-state>
+        <expanded-state>
+          <State>
+            <id />
+          </State>
+        </expanded-state>
+        <selected-state>
+          <State>
+            <id>C/C++</id>
+          </State>
+        </selected-state>
+      </profile-state>
+    </entry>
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -188,7 +216,7 @@
     <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
     <property name="recentsLimit" value="5" />
     <property name="FullScreen" value="false" />
-    <property name="settings.editor.selected.configurable" value="editor.preferences.appearance" />
+    <property name="settings.editor.selected.configurable" value="preferences.sourceCode" />
     <property name="settings.editor.splitter.proportion" value="0.2" />
   </component>
   <component name="RecentsManager">
@@ -268,7 +296,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="22" width="1440" height="874" extended-state="7" />
+    <frame x="0" y="22" width="1440" height="874" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.3375959" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
@@ -330,29 +358,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/examples/json.h">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
-          <caret line="88" column="2" selection-start-line="88" selection-start-column="2" selection-end-line="88" selection-end-column="2" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/c/xstring.c">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="-16.814816">
           <caret line="403" column="1" selection-start-line="403" selection-start-column="1" selection-end-line="403" selection-end-column="1" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/examples/json.c">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="8.987206">
-          <caret line="281" column="43" selection-start-line="281" selection-start-column="43" selection-end-line="281" selection-end-column="43" />
-          <folding>
-            <element signature="e#1580#1599#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -427,15 +437,57 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/doc/api/html/index.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/examples/json.c">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.36895162">
+          <caret line="618" column="65" selection-start-line="618" selection-start-column="48" selection-end-line="618" selection-end-column="65" />
+          <folding>
+            <element signature="e#1580#1599#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/examples/json.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="1.7540323">
+          <caret line="61" column="14" selection-start-line="61" selection-start-column="14" selection-end-line="61" selection-end-column="14" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/c/xstring.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="2.5705645">
+          <caret line="86" column="26" selection-start-line="86" selection-start-column="26" selection-end-line="86" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/README.md">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="3.8865097">
-          <caret line="121" column="19" selection-start-line="121" selection-start-column="19" selection-end-line="121" selection-end-column="19" />
+        <state vertical-scroll-proportion="-9.379311">
+          <caret line="142" column="109" selection-start-line="142" selection-start-column="109" selection-end-line="142" selection-end-column="109" />
           <folding />
         </state>
       </provider>
       <provider editor-type-id="MarkdownPreviewEditor">
         <state />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/c/parser.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="3.0544355">
+          <caret line="111" column="58" selection-start-line="111" selection-start-column="58" selection-end-line="111" selection-end-column="58" />
+          <folding />
+        </state>
       </provider>
     </entry>
   </component>
