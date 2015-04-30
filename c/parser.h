@@ -42,11 +42,13 @@
 #include <stdio.h>
 
 /// The number of characters to read at once.  This is also the lookahead limit.
+/// To override this value #define it prior to inclusion.
 #ifndef SPSPS_LOOK
     #define SPSPS_LOOK (4096)
 #endif
 
-/// The kind of character to parse.
+/// The kind of character to parse.  To override this #define it prior to
+/// inclusion.
 #ifndef SPSPS_CHAR
  	#define SPSPS_CHAR char
 #endif
@@ -54,7 +56,7 @@
 /// The end of file marker.
 #define SPSPS_EOF ((SPSPS_CHAR)-1)
 
-// If you define SPSPS_SHORTHAND, then you get shorter names for the methods
+// If you #define SPSPS_SHORTHAND, then you get shorter names for the methods
 // that might conflict with other names.  It's up to you.
 #ifdef SPSPS_SHORTHAND
 #define consume()				spsps_consume()
@@ -106,8 +108,10 @@ typedef enum spsps_errno {
  */
 char * spsps_loc_to_string(Loc * loc);
 
+/// The destination for error messages.  To override this #define it prior to
+/// inclusion.  It must specify an open FILE* destination.
 #ifndef SPSPS_STDERR
-#define SPSPS_STDERR stderr
+	#define SPSPS_STDERR stderr
 #endif
 
 /**

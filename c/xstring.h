@@ -75,14 +75,16 @@ typedef struct mstring_ * mstring;
 	free(cstring); \
 }
 
-/// Opaque type for a character.
+/// Opaque type for a character.  The default is char.  To override the
+/// default, #define this prior to inclusion.
 #ifdef SPSPS_CHAR
 typedef SPSPS_CHAR xchar;
 #else
 typedef char xchar;
 #endif
 
-/// Incremental size to use for mutable string.
+/// Incremental size to use for mutable string.  To override this #define
+/// it prior to inclusion.
 #ifndef MSTR_INC
 #  define MSTR_INC 64
 #endif
