@@ -144,6 +144,7 @@ int main(int argc, char * argv[]) {
 		// Free the value!
 		json_free_value(value);
 	}
+	spsps_free(parser);
 	// Done.
 	if (argc > 1) {
 		fclose(input);
@@ -219,13 +220,13 @@ parse_value(Parser parser) {
 char
 unhex_(char ch) {
 	if (ch >= '0' && ch <= '9') {
-		return ch - '0';
+		return (char) (ch - '0');
 	} else if (ch >= 'a' && ch <= 'f') {
-		return ch - 'a' + 10;
+		return (char) (ch - 'a' + 10);
 	} else if (ch >= 'A' && ch <= 'F') {
-		return ch - 'A' + 10;
+		return (char) (ch - 'A' + 10);
 	} else {
-		return 255;
+		return (char) 255;
 	}
 }
 
@@ -265,7 +266,7 @@ parse_string(Parser parser) {
 				highc = spsps_consume(parser);
 				lowc = spsps_consume(parser);
 				high = unhex_((char) highc);
-				low = unhex_((char) lowc);
+				low = unhex_(lowc);
 				if (high > 15) {
 					SPSPS_ERR(parser, "Expected to find two hexadecimal digits "
 							"in an escape (starting with \\x) but "
@@ -299,11 +300,11 @@ parse_integer_(Parser parser, int *digits) {
 		return 0;
 	}
 	int value = 0;
-	while (isdigit(spsps_peek(parser))) {
+	do {
 		value *= 10;
 		value += spsps_consume(parser) - '0';
 		*digits += 1;
-	} // Parse all digits.
+	} while (isdigit(spsps_peek(parser))); // Parse all digits.
 	return value;
 }
 
@@ -311,14 +312,19 @@ json_value *
 parse_number(Parser parser) {
 	// Build the number by consuming the digits.
 	bool neg = spsps_peek_and_consume(parser, "-");
-	double value = 0.0;
 	// Consume the integer portion of the number.  There must be a digit.
 	int digits = 0;
-	value = (double) parse_integer_(parser, &digits);
+	double value = (double) parse_integer_(parser, &digits);
+	if (digits == 0) {
+		return NULL;
+	}
 	// See what the next character is.
 	if (spsps_peek_and_consume(parser, ".")) {
 		// We have found a fractional part.  Parse it.
 		double fracpart = (double) parse_integer_(parser, &digits);
+		if (digits == 0) {
+			return NULL;
+		}
 		value += fracpart / pow(10, digits);
 	}
 	if (spsps_peek_and_consume(parser, "E") || spsps_peek_and_consume(parser, "e")) {
@@ -332,6 +338,9 @@ parse_number(Parser parser) {
 			spsps_consume(parser);
 		}
 		double exppart = (double) parse_integer_(parser, &digits);
+		if (digits == 0) {
+			return NULL;
+		}
 		if (negexp) exppart = -exppart;
 		value *= pow(10, exppart);
 	}

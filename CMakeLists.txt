@@ -22,7 +22,7 @@ find_program(CTEST_MEMORYCHECK_COMMAND NAMES valgrind)
 FILE(GLOB_RECURSE lib_sources RELATIVE ${CMAKE_HOME_DIRECTORY} c/*.c)
 
 # Find include files.
-include_directories( AFTER SYSTEM c )
+include_directories( AFTER SYSTEM include c )
 
 # Figure out if this is a debug or release.
 if( NOT CMAKE_BUILD_TYPE )
@@ -36,12 +36,14 @@ include_directories( AFTER SYSTEM src )
 add_library( spsps SHARED ${lib_sources} )
 
 # Build the JSON example.
-add_executable( json examples/json.c )
+add_executable( json c/json.c )
 target_link_libraries( json spsps )
 
 # Build the tests.
 add_executable( string_test test/string_test.c )
 target_link_libraries( string_test spsps )
+add_executable( double_parser test/double_parser.c )
+target_link_libraries( double_parser spsps )
 
 # Add a documentation target.  First we have to find doxygen.
 find_program( doxygen_path doxygen PATHS ENV PATH NO_DEFAULT_PATH )

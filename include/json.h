@@ -41,12 +41,13 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 /**********************************************************************
 * Data structures for JSON.
 **********************************************************************/
 
-/// Size of the map.  To override this #define it prior to inclusion.
+/// Size of the map.  To override this \#define it prior to inclusion.
 #ifndef MAP_SIZE
 	#define MAP_SIZE 256
 #endif
@@ -57,39 +58,40 @@ typedef enum json_kind_ {
 	// Note we use NOTHING instead of NULL, because its reserved.
 } json_kind;
 
-/// A single entry in a JSON object.  The object is a hash map, so an entry is
-/// actually going to be a singly linked list of entries that have the same
-/// hash code.
+/// A single entry in a JSON object.
+/// The object is a hash map, so an entry is actually going to be a singly
+/// linked list of entries that have the same hash code.
 typedef struct json_object_entry_ {
-	char * key; //< The key for the value.
-	struct json_value_ * value; //< The value.
-	struct json_object_entry_ * next; //< A pointer to the next entry.
+	char * key; ///< The key for the value.
+	struct json_value_ * value; ///< The value.
+	struct json_object_entry_ * next; ///< A pointer to the next entry.
 } json_object_entry;
 
 /// A simple JSON object.
 typedef struct json_object_ {
+	/// The map stored in this object.
 	struct json_object_entry_ * map[MAP_SIZE];
 } json_object;
 
 /// A simple JSON array.
 typedef struct json_array_ {
-	size_t size; //< Size of the array.
-	struct json_value_ ** array; //< The array.
+	size_t size; ///< Size of the array.
+	struct json_value_ ** array; ///< The array.
 } json_array;
 
 /// The content of a JSON value.
 typedef union json_content_ {
-	double numvalue; //< A number value.
-	char * strvalue; //< A string value.
-	bool boolvalue; //< A Boolean value.
-	json_array * arrayvalue; //< An array value.
-	json_object * objectvalue; //< An object value.
+	double numvalue; ///< A number value.
+	char * strvalue; ///< A string value.
+	bool boolvalue; ///< A Boolean value.
+	json_array * arrayvalue; ///< An array value.
+	json_object * objectvalue; ///< An object value.
 } json_content;
 
 /// A JSON value.
 typedef struct json_value_ {
-	json_kind kind; //< The kind of the value.
-	json_content content; //< The actual value.
+	json_kind kind; ///< The kind of the value.
+	json_content content; ///< The actual value.
 } json_value;
 
 /**********************************************************************

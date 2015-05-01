@@ -1,5 +1,5 @@
-#ifndef STRING_H_
-#define STRING_H_
+#ifndef PARSER_H_
+#define PARSER_H_
 
 /**
  * @file
@@ -40,14 +40,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /// The number of characters to read at once.  This is also the lookahead limit.
-/// To override this value #define it prior to inclusion.
+/// To override this value \#define it prior to inclusion.
 #ifndef SPSPS_LOOK
     #define SPSPS_LOOK (4096)
 #endif
 
-/// The kind of character to parse.  To override this #define it prior to
+/// The kind of character to parse.  To override this \#define it prior to
 /// inclusion.
 #ifndef SPSPS_CHAR
  	#define SPSPS_CHAR char
@@ -108,7 +109,7 @@ typedef enum spsps_errno {
  */
 char * spsps_loc_to_string(Loc * loc);
 
-/// The destination for error messages.  To override this #define it prior to
+/// The destination for error messages.  To override this \#define it prior to
 /// inclusion.  It must specify an open FILE* destination.
 #ifndef SPSPS_STDERR
 	#define SPSPS_STDERR stderr
@@ -120,7 +121,7 @@ char * spsps_loc_to_string(Loc * loc);
  * obtained and printed.  If the message is not NULL, then it is printed
  * (as a format string) and subsequent arguments are the arguments to the
  * format string.  If you wish to use a different stream, either redirect
- * standard error, or #define SPSPS_STDERR to your stream.
+ * standard error, or \#define SPSPS_STDERR to your stream.
  * @param m_parser			The parser.
  * @param m_msg				The message (a format string) plus arguments.
  */
@@ -199,7 +200,7 @@ bool spsps_eof(Parser parser);
  * Get the current location in the stream.  This is the location of the next
  * character to be read, unless the end of stream has been reached.  The caller
  * is responsible for freeing the returned location via free.
- * @param 				The parser.
+ * @param parser		The parser.
  * @return				The location of the next character to be read.
  */
 Loc * spsps_loc(Parser parser);
@@ -207,7 +208,7 @@ Loc * spsps_loc(Parser parser);
 /**
  * Peek and return the next character in the stream.  The character is not
  * consumed.
- * @param				The parser.
+ * @param parser		The parser.
  * @return				The next character.
  */
 SPSPS_CHAR spsps_peek(Parser parser);
@@ -222,7 +223,7 @@ SPSPS_CHAR spsps_peek(Parser parser);
  * @param n				The number of characters to look ahead.
  * @return				The next characters.
  */
-char * spsps_peek_n(Parser parser, size_t n);
+SPSPS_CHAR * spsps_peek_n(Parser parser, size_t n);
 
 /**
  * Peek ahead and determine if the next characters in the stream are the given
@@ -232,7 +233,7 @@ char * spsps_peek_n(Parser parser, size_t n);
  * @param next			The characters.
  * @return				True iff the stream contains the given string next.
  */
-bool spsps_peek_str(Parser parser, char * next);
+bool spsps_peek_str(Parser parser, SPSPS_CHAR * next);
 
 /**
  * Peek ahead at the next few characters and if they are a given string, then

@@ -88,13 +88,13 @@ mstr_inspect(mstring str) {
 	printf("Inspecting mstring:\n");
 	while (str != NULL) {
 		printf("  mstring {\n");
-		printf("     sizeof(xchar) = %lu\n", sizeof(xchar));
+		printf("     sizeof(xchar) = %lu\n", SPSPS_CHAR_SIZE);
 		printf("    local_capacity = %lu\n", str->local_capacity);
 		printf("      local_length = %lu\n", str->local_length);
 		printf("            length = %lu\n", str->length);
 		printf("              cstr = [");
 		int count = 16;
-		size_t truelength = sizeof(xchar) * str->local_length;
+		size_t truelength = SPSPS_CHAR_SIZE * str->local_length;
 		for (int index = 0; index < truelength; ++index) {
 			unsigned char ch = * ((unsigned char *) str->cstr + index);
 			if (isprint(ch)) {
@@ -114,7 +114,7 @@ mstr_inspect(mstring str) {
 		}
 		printf("/* local_length boundary */");
 		printf("\n                      ");
-		size_t fulllength = sizeof(xchar) * str->local_capacity;
+		size_t fulllength = SPSPS_CHAR_SIZE * str->local_capacity;
 		for (size_t index = truelength; index < fulllength; ++index) {
 			unsigned char ch = * ((unsigned char *) str->cstr + index);
 			if (isprint(ch)) {
@@ -155,7 +155,7 @@ mstr_new(size_t capacity) {
 	empty->local_length = 0;
 	empty->length = 0;
 	empty->next = NULL;
-	empty->cstr = (xchar *) malloc(sizeof(xchar) * capacity);
+	empty->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE * capacity);
 	empty->local_capacity = capacity;
 	return empty;
 }
@@ -199,7 +199,7 @@ xstr_wrap(char * value) {
 	if (len == 0) return NULL;
 	xstring str = xstr_new();
 	str->length = len;
-	str->cstr = (xchar *) malloc(len * sizeof(xchar));
+	str->cstr = (xchar *) malloc(len * SPSPS_CHAR_SIZE);
 	for (size_t index = 0; index < len; ++index) {
 		str->cstr[index] = (xchar) value[index];
 	} // Copy all characters, converting if necessary.
@@ -240,7 +240,7 @@ xstr_wwrap(wchar_t * value) {
 	if (len == 0) return NULL;
 	xstring str = xstr_new();
 	str->length = len;
-	str->cstr = (xchar *) malloc(len * sizeof(xchar));
+	str->cstr = (xchar *) malloc(len * SPSPS_CHAR_SIZE);
 	for (size_t index = 0; index < len; ++index) {
 		str->cstr[index] = (xchar) value[index];
 	} // Copy all characters, converting if necessary.
@@ -279,8 +279,8 @@ xstr_copy(xstring other) {
 	if (other == NULL || other->length == 0) return NULL;
 	xstring str = xstr_new();
 	str->length = other->length;
-	str->cstr = (xchar *) malloc(other->length * sizeof(xchar));
-	memcpy(str->cstr, other->cstr, str->length * sizeof(xchar));
+	str->cstr = (xchar *) malloc(other->length * SPSPS_CHAR_SIZE);
+	memcpy(str->cstr, other->cstr, other->length * SPSPS_CHAR_SIZE);
 	return str;
 }
 
@@ -295,7 +295,7 @@ mstr_copy(mstring other) {
 	xchar * there = str->cstr;
 	while (here != NULL) {
 		if (here->cstr != NULL)
-			memcpy(there, here->cstr, here->local_length * sizeof(xchar));
+			memcpy(there, here->cstr, here->local_length * SPSPS_CHAR_SIZE);
 		there += here->local_length;
 		here = here->next;
 	} // Copy all blocks to the new string.
@@ -308,12 +308,12 @@ mstr_to_xstr(mstring other) {
 	if (len == 0) return NULL;
 	xstring ret = xstr_new();
 	ret->length = len;
-	ret->cstr = (xchar *) malloc(sizeof(xchar) * len);
+	ret->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE * len);
 	mstring here = other;
 	xchar * there = ret->cstr;
 	while (here != NULL) {
 		if (here->cstr != NULL)
-			memcpy(there, here->cstr, here->local_length * sizeof(xchar));
+			memcpy(there, here->cstr, here->local_length * SPSPS_CHAR_SIZE);
 		there += here->local_length;
 		here = here->next;
 	} // Copy all blocks to the new string.
@@ -325,7 +325,7 @@ xstr_to_mstr(xstring other) {
 	size_t len = other == NULL ? 0 : other->length;
 	if (len == 0) return NULL;
 	mstring ret = mstr_new(len + MSTR_INC);
-	memcpy(ret->cstr, other->cstr, len * sizeof(xchar));
+	memcpy(ret->cstr, other->cstr, len * SPSPS_CHAR_SIZE);
 	ret->local_length = len;
 	ret->length = len;
 	return ret;
@@ -350,12 +350,12 @@ xstr_append(xstring value, xchar ch) {
 	xstring str = xstr_new();
 	if (value == NULL || value->length == 0) {
 		str->length = 1;
-		str->cstr = (xchar *) malloc(sizeof(xchar));
+		str->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE);
 		str->cstr[0] = ch;
 	} else {
 		str->length = value->length + 1;
-		str->cstr = (xchar *) malloc(str->length * sizeof(xchar));
-		memcpy(str->cstr, value->cstr, value->length * sizeof(xchar));
+		str->cstr = (xchar *) malloc(str->length * SPSPS_CHAR_SIZE);
+		memcpy(str->cstr, value->cstr, value->length * SPSPS_CHAR_SIZE);
 		str->cstr[value->length] = ch;
 	}
 	return str;
@@ -408,15 +408,19 @@ xstr_append_cstr(xstring value, char * cstr) {
 	if (value == NULL) return xstr_wrap(cstr);
 	size_t len = (cstr == NULL) ? 0 : strlen(cstr);
 	if (len == 0) return value;
-	xchar * newstr = (xchar *) malloc(sizeof(xchar) * (len + value->length));
-	memcpy(newstr, value->cstr, sizeof(xchar) * value->length);
-	if (sizeof(xchar) == sizeof(char)) {
+	xchar * newstr = (xchar *) malloc(SPSPS_CHAR_SIZE * (len + value->length));
+	memcpy(newstr, value->cstr, SPSPS_CHAR_SIZE * value->length);
+#ifndef SPSPS_SIMPLE
+	if (SPSPS_ISCHAR) {
+#endif
 		memcpy(newstr + value->length, cstr, len);
+#ifndef SPSPS_SIMPLE
 	} else {
 		for (size_t index = 0; index < len; ++index) {
 			newstr[value->length + index] = cstr[index];
 		}
 	}
+#endif
 	xstring ret = xstr_new();
 	ret->cstr = newstr;
 	ret->length = value->length + len;
@@ -449,13 +453,17 @@ mstr_append_cstr(mstring value, char * cstr) {
 	if (excess >= len) {
 		// The current block can hold this string with no
 		// additional allocation.  Copy and convert.
-		if (sizeof(xchar) == sizeof(char)) {
+#ifndef SPSPS_SIMPLE
+		if (SPSPS_ISCHAR) {
+#endif
 			memcpy(here->cstr + here->local_length, cstr, len);
+#ifndef SPSPS_SIMPLE
 		} else {
 			for (int index = 0; index < len; ++index) {
 				here->cstr[here->local_length + index] = (xchar) cstr[index];
 			}
 		}
+#endif
 		here->local_length += len;
 		return value;
 	}
@@ -463,13 +471,17 @@ mstr_append_cstr(mstring value, char * cstr) {
 	if (excess > 0) {
 		// We can copy a portion of the string in now.
 		here->local_length += excess;
-		if (sizeof(xchar) == sizeof(char)) {
+#ifndef SPSPS_SIMPLE
+		if (SPSPS_ISCHAR) {
+#endif
 			memcpy(here->cstr + here->local_length, cstr, excess);
+#ifndef SPSPS_SIMPLE
 		} else {
 			for (int index = 0; index < excess; ++index) {
 				here->cstr[here->local_length + index] = (xchar) cstr[index];
 			}
 		}
+#endif
 		cstr += excess;
 	}
 	// We must allocate a new block to hold the rest.
@@ -497,10 +509,10 @@ xstr_concat(xstring first, xstring second) {
 	// Neither string is empty, so go ahead and allocate.
 	size_t len = first->length + second->length;
 	xstring str = xstr_new();
-	str->cstr = (xchar *) malloc(sizeof(xchar) * len);
-	memcpy(str->cstr, first->cstr, first->length * sizeof(xchar));
+	str->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE * len);
+	memcpy(str->cstr, first->cstr, first->length * SPSPS_CHAR_SIZE);
 	memcpy(str->cstr + first->length, second->cstr,
-			second->length * sizeof(xchar));
+			second->length * SPSPS_CHAR_SIZE);
 	str->length = len;
 	return str;
 }
@@ -561,7 +573,7 @@ xstr_substr(xstring value, size_t start, size_t num) {
 	if (num == 0) return NULL;
 	// The requested substring is not empty, so allocate.
 	xstring str = xstr_new();
-	str->cstr = (xchar *) malloc(sizeof(xchar) * num);
+	str->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE * num);
 	str->length = num;
 	size_t vlen = (value == NULL) ? 0 : value->length;
 	// Now there are two ranges.  The first is characters that are
@@ -571,18 +583,18 @@ xstr_substr(xstring value, size_t start, size_t num) {
 	if (start >= vlen) {
 		// Start is past the end of the string.  The first range is
 		// empty; everything is in the second range.
-		memset(str->cstr, 0, sizeof(xchar) * num);
+		memset(str->cstr, 0, SPSPS_CHAR_SIZE * num);
 	} else if (start + num >= vlen) {
 		// Start is in the string, but the end of the range is past
 		// the end of the string.  We need both ranges.  The number
 		// of elements in the first range is given by the following
 		// equation.
 		size_t flen = vlen - 1 - start;
-		memcpy(str->cstr, value->cstr + start, sizeof(xchar) * flen);
-		memset(str->cstr + flen, 0, sizeof(xchar) * (num - flen));
+		memcpy(str->cstr, value->cstr + start, SPSPS_CHAR_SIZE * flen);
+		memset(str->cstr + flen, 0, SPSPS_CHAR_SIZE * (num - flen));
 	} else {
 		// The entire substring is inside the string.
-		memcpy(str->cstr, value->cstr + start, sizeof(xchar) * num);
+		memcpy(str->cstr, value->cstr + start, SPSPS_CHAR_SIZE * num);
 	}
 	return str;
 }
@@ -600,7 +612,7 @@ mstr_substr(mstring value, size_t start, size_t num) {
 	if (start >= vlen) {
 		// Start is past the end of the string.  The first range is
 		// empty; everything is in the second range.
-		memset(str->cstr, 0, sizeof(xchar) * num);
+		memset(str->cstr, 0, SPSPS_CHAR_SIZE * num);
 		return str;
 	}
 	// Now we have to extract characters from the string, but the
@@ -611,7 +623,7 @@ mstr_substr(mstring value, size_t start, size_t num) {
 		// Start is in the string, but the end of the range is past
 		// the end of the string.  We need both ranges.
 		flen = vlen - 1 - start;
-		memset(str->cstr + flen, 0, sizeof(xchar) * (num - flen));
+		memset(str->cstr + flen, 0, SPSPS_CHAR_SIZE * (num - flen));
 	} else {
 		// The entire substring is inside the string.
 		flen = num;
@@ -781,8 +793,11 @@ xstr_cstr(xstring value) {
 	char * cstr = (char *) malloc(value->length + 1);
 	// For performance handle the special case that the user is
 	// using chars.
-	if (sizeof(xchar) == sizeof(char)) {
+#ifndef SPSPS_SIMPLE
+	if (SPSPS_ISCHAR) {
+#endif
 		memcpy(cstr, value->cstr, value->length);
+#ifndef SPSPS_SIMPLE
 	} else {
 		// We have to copy so each character is downconverted to a
 		// simple char.
@@ -790,6 +805,7 @@ xstr_cstr(xstring value) {
 			cstr[index] = (char) xstr_char(value, index);
 		} // Convert and copy all characters.
 	}
+#endif
 	// Null terminate.
 	cstr[value->length] = 0;
 	return cstr;
@@ -813,13 +829,18 @@ mstr_cstr(mstring value) {
 	char * cstr = (char *) malloc(value->length + 1);
 	mstring here = value;
 	char * there = cstr;
-	int simple = (sizeof(xchar) == sizeof(char));
+#ifndef SPSPS_SIMPLE
+	int simple = SPSPS_ISCHAR;
+#endif
 	while (here != NULL) {
 		if (here->cstr != NULL) {
 			// For performance handle the special case that the user is
 			// using chars.
+#ifndef SPSPS_SIMPLE
 			if (simple) {
+#endif
 				memcpy(there, here->cstr, here->local_length);
+#ifndef SPSPS_SIMPLE
 			} else {
 				// We have to copy so each character is downconverted to a
 				// simple char.
@@ -827,6 +848,7 @@ mstr_cstr(mstring value) {
 					there[index] = (char) here->cstr[index];
 				} // Convert and copy all characters.
 			}
+#endif
 		}
 		there += here->local_length;
 		here = here->next;
@@ -854,7 +876,7 @@ xstr_wcstr(xstring value) {
 	wchar_t * wcstr = (wchar_t *) malloc(sizeof(wchar_t) * (value->length + 1));
 	// For performance handle the special case that the user is
 	// using wchar_t.
-	if (sizeof(xchar) == sizeof(wchar_t)) {
+	if (SPSPS_CHAR_SIZE == sizeof(wchar_t)) {
 		memcpy(wcstr, value->cstr, value->length * sizeof(wchar_t));
 	} else {
 		// We have to copy so each character is converted to a
@@ -886,7 +908,7 @@ mstr_wcstr(mstring value) {
 	wchar_t * wcstr = (wchar_t *) malloc(sizeof(wchar_t) * (value->length + 1));
 	mstring here = value;
 	wchar_t * there = wcstr;
-	int simple = (sizeof(xchar) == sizeof(wchar_t));
+	int simple = (SPSPS_CHAR_SIZE == sizeof(wchar_t));
 	while (here != NULL) {
 		if (here->cstr != NULL) {
 			if (simple) {
