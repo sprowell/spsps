@@ -334,7 +334,7 @@ parse_double(Parser parser) {
 }
 ~~~~~~~~~~~~~~~
 
-This function requires that we have a `parser` instance, so let's do that next.  We will wrap the standard input stream and parse doubles the user types.
+This function requires that we have a `parser` instance, so let's do that next.  We will wrap the standard input stream and parse what the user types.
 
 ~~~~~~~~~~~~~~~{.c}
 #include <math.h>

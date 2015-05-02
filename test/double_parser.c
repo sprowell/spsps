@@ -8,8 +8,8 @@ int
 parse_digits(Parser parser, int* count) {
     *count = 0;
     if (! isdigit(spsps_peek(parser))) {
-        SPSPS_ERR(parser, "Expected to find a digit, but instead found U+%04x.",
-                  spsps_peek(parser));
+        SPSPS_ERR(parser, "Expected to find a digit, but instead found %s.",
+                  spsps_printchar(spsps_peek(parser)));
         return 0;
     }
     int value = 0;
