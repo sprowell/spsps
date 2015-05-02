@@ -38,6 +38,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
+#include <wchar.h>
 
 //======================================================================
 // Definition of the parser struct.
@@ -67,6 +69,21 @@ struct spsps_parser_ {
 	/// The most recent error code.
 	spsps_errno errno;
 };
+
+//======================================================================
+// Helper functions.
+//======================================================================
+
+SPSPS_CHAR chbuf[30]; // U+002e (.) and U+0000002e.
+char * spsps_printchar(SPSPS_CHAR xch) {
+	unsigned SPSPS_CHAR ch = (unsigned SPSPS_CHAR) xch;
+	if (isprint(ch)) {
+		sprintf(chbuf, "U+%04x (%1c)", ch, ch);
+	} else {
+		sprintf(chbuf, "U+%04x", ch);
+	}
+	return chbuf;
+}
 
 //======================================================================
 // Primitives.

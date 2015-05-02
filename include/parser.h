@@ -151,6 +151,21 @@ char * spsps_loc_to_string(Loc * loc);
 typedef struct spsps_parser_ * Parser;
 
 /**
+ * Format and return a string representation of the given character as a
+ * Unicode character.  The same buffer is used every time, so do not
+ * deallocate the return, but do copy it if you want to preserve it.
+ * The return value will have the form "U+hhhh (c)", where hhhh is the four
+ * digit hex value of the character (if it is 16-bit Unicode) and c is the
+ * character itself (if it is printable).  If the character is not printable
+ * (as determined by the isprint C library function, then the " (c)" part
+ * is suppressed.  If this is outside the 16-bit Unicode range, the results
+ * are unpredictable.
+ * @param xch			The character.
+ * @return				The formatted display for the character.
+ */
+char * spsps_printchar(SPSPS_CHAR xch);
+
+/**
  * Create a new parser instance.  The caller is responsible for freeing the
  * returned parser instance by calling spsps_free.  The provided file name is
  * copied to new allocated memory, and the caller is responsible for freeing

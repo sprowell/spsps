@@ -41,17 +41,6 @@
 #include <string.h>
 #include <math.h>
 
-SPSPS_CHAR chbuf[15]; // U+002e (.)
-char * printify(SPSPS_CHAR xch) {
-	unsigned SPSPS_CHAR ch = (unsigned SPSPS_CHAR) xch;
-	if (isprint(ch)) {
-		sprintf(chbuf, "U+%04x (%1c)", ch, ch);
-	} else {
-		sprintf(chbuf, "U+%04x", ch);
-	}
-	return chbuf;
-}
-
 /**
  * Come here to read a JSON value from the stream.  Leading whitespace is
  * allowed.
@@ -204,7 +193,8 @@ parse_value(Parser parser) {
 		} else {
 			SPSPS_ERR(parser, "Expected to find a value, but instead found "
 					"unexpected character %s, which does not start a "
-					"value.  Did you forget to quote a string?", printify(ch));
+					"value.  Did you forget to quote a string?",
+					  spsps_printchar(ch));
 			return NULL;
 		}
 	}
@@ -235,7 +225,7 @@ parse_string(Parser parser) {
 	// The first thing in the stream must be the quotation mark.
 	if (! spsps_peek_and_consume(parser, "\"")) {
 		SPSPS_ERR(parser, "Expected to find a quotation mark for a string, "
-				"but instead found %s.", printify(spsps_peek(parser)));
+				"but instead found %s.", spsps_printchar(spsps_peek(parser)));
 		return NULL;
 	}
 	// Read the rest of the string.
@@ -270,12 +260,12 @@ parse_string(Parser parser) {
 				if (high > 15) {
 					SPSPS_ERR(parser, "Expected to find two hexadecimal digits "
 							"in an escape (starting with \\x) but "
-							"instead found %s.", printify(highc));
+							"instead found %s.", spsps_printchar(highc));
 				}
 				if (low > 15) {
 					SPSPS_ERR(parser, "Expected to find two hexadecimal digits "
 							"in an escape (starting with \\x) but "
-							"instead found %s.", printify(lowc));
+							"instead found %s.", spsps_printchar(lowc));
 				}
 				str = mstr_append(str, (char) ((high << 4)|low));
 				break;
@@ -296,7 +286,7 @@ parse_integer_(Parser parser, int *digits) {
 	*digits = 0;
 	if (! isdigit(spsps_peek(parser))) {
 		SPSPS_ERR(parser, "Expected to find a digit, but instead found %s.",
-				  printify(spsps_peek(parser)));
+				  spsps_printchar(spsps_peek(parser)));
 		return 0;
 	}
 	int value = 0;
@@ -383,7 +373,8 @@ parse_object(Parser parser) {
 	// Arrays start with a curly brace.
 	if (! spsps_peek_and_consume(parser, "{")) {
 		SPSPS_ERR(parser, "Expected to find the start of an object (a curly "
-				"brace), but instead found %s.", printify(spsps_peek(parser)));
+				"brace), but instead found %s.",
+				  spsps_printchar(spsps_peek(parser)));
 		return NULL;
 	}
 	spsps_consume_whitespace(parser);
@@ -409,7 +400,7 @@ parse_object(Parser parser) {
 			! spsps_peek_and_consume(parser, ":")) {
 			SPSPS_ERR(parser, "Expected to find an equal sign or a colon for "
 					"a string = value pair, but instead found %s.",
-					printify(spsps_peek(parser)));
+					  spsps_printchar(spsps_peek(parser)));
 			dealloc_object_(object);
 			return NULL;
 		}
@@ -431,7 +422,7 @@ parse_object(Parser parser) {
 			SPSPS_ERR(parser, "Expected to find either a comma or the "
 					"end of the object (a curly brace), but instead "
 					"found %s.  Did you forget a comma?",
-					printify(spsps_peek(parser)));
+					  spsps_printchar(spsps_peek(parser)));
 			dealloc_object_(object);
 			return NULL;
 		}
@@ -440,7 +431,7 @@ parse_object(Parser parser) {
 	if (! spsps_peek_and_consume(parser, "}")) {
 		SPSPS_ERR(parser, "Expected to find a closing curly brace at "
 				"the end of the object, but instead found %s.",
-				printify(spsps_peek(parser)));
+				  spsps_printchar(spsps_peek(parser)));
 		dealloc_object_(object);
 		return NULL;
 	}
@@ -486,7 +477,7 @@ parse_array(Parser parser) {
 	if (! spsps_peek_and_consume(parser, "[")) {
 		SPSPS_ERR(parser, "Expected to find the start of an array (a square "
 				"bracket), but instead found %s.",
-				printify(spsps_peek(parser)));
+				  spsps_printchar(spsps_peek(parser)));
 		return NULL;
 	}
 	// Now consume a comma-separated list of items.  We store this in a
@@ -521,7 +512,7 @@ parse_array(Parser parser) {
 				SPSPS_ERR(parser, "Expected to find a comma or the end "
 						"of the array (right square bracket), but instead "
 						"found '%s'.  Did you forget a comma?",
-						printify(spsps_peek(parser)));
+						  spsps_printchar(spsps_peek(parser)));
 				dealloc_list_(list);
 				return NULL;
 			}
