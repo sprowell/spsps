@@ -1,5 +1,5 @@
-#ifndef PARSER_H_
-#define PARSER_H_
+#ifndef SPSPS_PARSER_H_
+#define SPSPS_PARSER_H_
 
 /**
  * @file
@@ -259,4 +259,4 @@ bool spsps_peek_str(Parser parser, SPSPS_CHAR * next);
  */
 bool spsps_peek_and_consume(Parser parser, char * next);
 
-#endif /* PARSER_H */
+#endif /* SPSPS_PARSER_H_ */

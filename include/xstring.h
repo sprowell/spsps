@@ -1,5 +1,5 @@
-#ifndef XSTRING_H_
-#define XSTRING_H_
+#ifndef SPSPS_XSTRING_H_
+#define SPSPS_XSTRING_H_
 
 /**
  * @file
@@ -553,4 +553,4 @@ wchar_t * mstr_wcstr(mstring value);
  */
 wchar_t * mstr_wcstr_f(mstring value);
 
-#endif /* XSTRING_H_ */
+#endif /* SPSPS_XSTRING_H_ */

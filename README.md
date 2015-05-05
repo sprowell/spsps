@@ -26,6 +26,9 @@ On Windows you should do whatever is the Windows equivalent.  I think it is some
 
 Want an out-of-source build?  Something else?  Read the documentation for CMake and have fun!
 
+## Unicode
+This library is intended to support UTF-8.  It is probably not there yet, but that's the goal.  See the [UTF-8 and Unicode FAQ for Unix/Linux][utf8faq] and also the [UTF-8 Everywhere Manifesto][utf8manifesto].
+
 ## xstring and mstring
 To use the string library, just `#include "xstring.h"` and link with the `spsps` library.  The header file defines two new data types: `xstring` and `mstring`.
 
@@ -362,4 +365,6 @@ main(int argc, char * argv[]) {
 [rd]: http://en.wikipedia.org/wiki/Recursive_descent_parser
 [toml]: https://github.com/toml-lang/toml
 [linear]: http://en.wikipedia.org/wiki/Linear_grammar
+[utf8faq]: http://www.cl.cam.ac.uk/~mgk25/unicode.html
+[utf8manifesto]: http://utf8everywhere.org
 

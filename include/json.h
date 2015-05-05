@@ -1,5 +1,5 @@
-#ifndef JSON_H_
-#define JSON_H_
+#ifndef SPSPS_JSON_H_
+#define SPSPS_JSON_H_
 
 /**
  * @file
@@ -208,4 +208,4 @@ void json_stream(FILE * stream, json_value * value, int depth);
  */
 json_value * parse_value(Parser parser);
 
-#endif /* JSON_H_ */
+#endif /* SPSPS_JSON_H_ */
