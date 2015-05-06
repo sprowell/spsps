@@ -25,7 +25,7 @@ FILE(GLOB_RECURSE lib_sources RELATIVE ${CMAKE_HOME_DIRECTORY} c/*.c)
 include_directories( AFTER SYSTEM include c )
 
 if( CMAKE_COMPILER_IS_GNUCC )
-     SET ( CMAKE_C_FLAGS "-D_BSD_SOURCE -std=c11" ) 
+     SET ( CMAKE_C_FLAGS "-D_BSD_SOURCE -std=c11 -pedantic -Wall" )
 endif( CMAKE_COMPILER_IS_GNUCC )
 
 # Figure out if this is a debug or release.
@@ -40,8 +40,12 @@ include_directories( AFTER SYSTEM src )
 add_library( spsps SHARED ${lib_sources} )
 
 # Build the JSON example.
-add_executable( json c/json.c )
+add_executable( json test/json_test.c )
 target_link_libraries( json spsps m )
+
+# Build the TOML example.
+#add_executable( toml test/toml_test.c )
+#target_link_libraries( toml spsps m )
 
 # Build the tests.
 add_executable( string_test test/string_test.c )

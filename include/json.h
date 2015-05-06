@@ -42,6 +42,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <parser.h>
 
 /**********************************************************************
 * Data structures for JSON.
@@ -206,6 +207,6 @@ void json_stream(FILE * stream, json_value * value, int depth);
  * @param parser		The parser.
  * @return				The next JSON value parsed.
  */
-json_value * parse_value(Parser parser);
+json_value * json_parse_value(Parser parser);
 
 #endif /* SPSPS_JSON_H_ */

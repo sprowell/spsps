@@ -52,7 +52,7 @@
  * @param parser			The parser object.
  * @return					The parsed value, or NULL if an error occurs.
  */
-json_value * parse_value(Parser parser);
+json_value * json_parse_value(Parser parser);
 
 /**
  * Come here to parse a quoted string from the stream.  The stream must
@@ -67,7 +67,7 @@ json_value * parse_value(Parser parser);
  * @param parser			The parser.
  * @return					The parsed string value, or NULL on error.
  */
-json_value * parse_string(Parser parser);
+static json_value * parse_string(Parser parser);
 
 /**
  * Come here to parse a number.  The first character in the stream is
@@ -82,7 +82,7 @@ json_value * parse_string(Parser parser);
  * @param parser			The parser.
  * @return					The number or NULL on error.
  */
-json_value * parse_number(Parser parser);
+static json_value * parse_number(Parser parser);
 
 /**
  * Come here to parse a JSON object.  The first character in the stream is
@@ -94,7 +94,7 @@ json_value * parse_number(Parser parser);
  * @param parser			The parser.
  * @return					The object or NULL on error.
  */
-json_value * parse_object(Parser parser);
+static json_value * parse_object(Parser parser);
 
 /**
  * Come here to parse a JSON array.  The first character in the stream is
@@ -105,45 +105,10 @@ json_value * parse_object(Parser parser);
  * @param parser			The parser.
  * @return					The array or NULL on error.
  */
-json_value * parse_array(Parser array);
-
-/**
- * Provide a main method to test the JSON parser.
- * @param argc				Number of arguments.
- * @param argv				Arguments.
- */
-int main(int argc, char * argv[]) {
-	// If a first argument is provided, it is the file name.  If no first
-	// argument is provided, then read from standard in.
-	FILE * input = stdin;
-	if (argc > 1) {
-		input = fopen(argv[1], "rt");
-		if (input == NULL) {
-			fprintf(stderr, "ERROR: Unable to read from file %s.\n", argv[1]);
-			exit(1);
-		}
-	}
-
-	// Now we have to read from the stream.  We read and parse JSON.
-	Parser parser = spsps_new(argv[1], input);
-	json_value * value = parse_value(parser);
-	if (value != NULL) {
-		// Print the value!
-		json_stream(stdout, value, 0);
-		fprintf(stdout, "\n");
-		// Free the value!
-		json_free_value(value);
-	}
-	spsps_free(parser);
-	// Done.
-	if (argc > 1) {
-		fclose(input);
-	}
-	exit(0);
-}
+static json_value * parse_array(Parser array);
 
 json_value *
-parse_value(Parser parser) {
+json_parse_value(Parser parser) {
 	// Allow whitespace here.
 	spsps_consume_whitespace(parser);
 
@@ -208,7 +173,7 @@ parse_value(Parser parser) {
  * @param ch				The character to convert.
  * @return					The value.
  */
-unsigned char
+static unsigned char
 unhex_(char ch) {
 	if (ch >= '0' && ch <= '9') {
 		return (unsigned char) (ch - '0');
@@ -221,7 +186,7 @@ unhex_(char ch) {
 	}
 }
 
-json_value *
+static json_value *
 parse_string(Parser parser) {
 	// The first thing in the stream must be the quotation mark.
 	if (! spsps_peek_and_consume(parser, "\"")) {
@@ -256,7 +221,7 @@ parse_string(Parser parser) {
 				// Extract the two hexadecimal characters.
 				highc = spsps_consume(parser);
 				lowc = spsps_consume(parser);
-				high = unhex_((char) highc);
+				high = unhex_(highc);
 				low = unhex_(lowc);
 				if (high > 15) {
 					SPSPS_ERR(parser, "Expected to find two hexadecimal digits "
@@ -282,7 +247,7 @@ parse_string(Parser parser) {
 	return json_new_string(cstring);
 }
 
-int
+static int
 parse_integer_(Parser parser, int *digits) {
 	*digits = 0;
 	if (! isdigit(spsps_peek(parser))) {
@@ -299,7 +264,7 @@ parse_integer_(Parser parser, int *digits) {
 	return value;
 }
 
-json_value *
+static json_value *
 parse_number(Parser parser) {
 	// Build the number by consuming the digits.
 	bool neg = spsps_peek_and_consume(parser, "-");
@@ -344,7 +309,7 @@ parse_number(Parser parser) {
  * Private function to deallocate an object.
  * @param object			The object to deallocate.
  */
-void
+static void
 dealloc_object_(json_object * object) {
 	if (object == NULL) return;
 	for (size_t index = 0; index < MAP_SIZE; ++index) {
@@ -369,7 +334,7 @@ dealloc_object_(json_object * object) {
 	free(object);
 }
 
-json_value *
+static json_value *
 parse_object(Parser parser) {
 	// Arrays start with a curly brace.
 	if (! spsps_peek_and_consume(parser, "{")) {
@@ -407,7 +372,7 @@ parse_object(Parser parser) {
 		}
 		spsps_consume_whitespace(parser);
 		// Get the value.
-		json_value * value = parse_value(parser);
+		json_value * value = json_parse_value(parser);
 		if (value == NULL) {
 			SPSPS_ERR(parser, "Expected a value following the equal sign.");
 			dealloc_object_(object);
@@ -455,7 +420,7 @@ struct llist_ {
  * Deallocate a linked list formed from the llist_ struct.
  * @param list				The list to deallocate.  May be NULL.
  */
-void
+static void
 dealloc_list_(struct llist_ * list) {
 	struct llist_ * here;
 	if (list == NULL) return;
@@ -469,7 +434,7 @@ dealloc_list_(struct llist_ * list) {
 	} // Deallocate the list.
 }
 
-json_value *
+static json_value *
 parse_array(Parser parser) {
 	// We don't know how long the array is, so we have to read the array
 	// before we allocate it.  For this to work, we need a flexible way
@@ -489,7 +454,7 @@ parse_array(Parser parser) {
 	// Watch for an empty object.
 	if (! spsps_peek_and_consume(parser, "]")) {
 		while (! spsps_eof(parser)) {
-			json_value * value = parse_value(parser);
+			json_value * value = json_parse_value(parser);
 			if (value == NULL) {
 				dealloc_list_(list);
 				return NULL;
@@ -534,7 +499,6 @@ parse_array(Parser parser) {
 
 void
 json_free_value(json_value * value) {
-	json_object * object;
 	json_array * array;
 	switch (value->kind) {
 	case OBJECT:
@@ -569,7 +533,6 @@ json_free_value(json_value * value) {
 uint32_t
 hash_string_(unsigned char * str) {
 	uint32_t hash = 5381;
-	uint32_t ch;
 	for (; *str != '\0'; ++str) {
 		// Use shift to multiply by 32, then subtract once to get
 		// multiplication by 31... my favorite hash multiplier.
