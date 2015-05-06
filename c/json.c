@@ -40,6 +40,7 @@
 #include "xstring.h"
 #include <string.h>
 #include <math.h>
+#include <ctype.h>
 
 /**
  * Come here to read a JSON value from the stream.  Leading whitespace is
