@@ -207,16 +207,16 @@ parse_value(Parser parser) {
  * @param ch				The character to convert.
  * @return					The value.
  */
-char
+unsigned char
 unhex_(char ch) {
 	if (ch >= '0' && ch <= '9') {
-		return (char) (ch - '0');
+		return (unsigned char) (ch - '0');
 	} else if (ch >= 'a' && ch <= 'f') {
-		return (char) (ch - 'a' + 10);
+		return (unsigned char) (ch - 'W');
 	} else if (ch >= 'A' && ch <= 'F') {
-		return (char) (ch - 'A' + 10);
+		return (unsigned char) (ch - '7');
 	} else {
-		return (char) 255;
+		return (unsigned char) 255;
 	}
 }
 
