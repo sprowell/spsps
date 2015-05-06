@@ -24,6 +24,10 @@ FILE(GLOB_RECURSE lib_sources RELATIVE ${CMAKE_HOME_DIRECTORY} c/*.c)
 # Find include files.
 include_directories( AFTER SYSTEM include c )
 
+if( CMAKE_COMPILER_IS_GNUCC )
+     SET ( CMAKE_C_FLAGS "-D_BSD_SOURCE -std=c11" ) 
+endif( CMAKE_COMPILER_IS_GNUCC )
+
 # Figure out if this is a debug or release.
 if( NOT CMAKE_BUILD_TYPE )
     SET( CMAKE_BUILD_TYPE "Release" )
@@ -37,13 +41,13 @@ add_library( spsps SHARED ${lib_sources} )
 
 # Build the JSON example.
 add_executable( json c/json.c )
-target_link_libraries( json spsps )
+target_link_libraries( json spsps m )
 
 # Build the tests.
 add_executable( string_test test/string_test.c )
-target_link_libraries( string_test spsps )
+target_link_libraries( string_test spsps m )
 add_executable( double_parser test/double_parser.c )
-target_link_libraries( double_parser spsps )
+target_link_libraries( double_parser spsps m )
 
 # Add a documentation target.  First we have to find doxygen.
 find_program( doxygen_path doxygen PATHS ENV PATH NO_DEFAULT_PATH )
