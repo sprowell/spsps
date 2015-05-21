@@ -1,5 +1,4 @@
 language: c
-install: cmake get-deps
 compiler: 
   - gcc
   - clang
