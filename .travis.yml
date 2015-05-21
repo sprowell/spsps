@@ -1,8 +1,8 @@
 language: c
 install: cmake get-deps
 compiler: 
-  -gcc
-  -clang
+  - gcc
+  - clang
 
 before_script:
   - cmake . 
