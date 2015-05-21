@@ -1,0 +1,10 @@
+language: c
+install: cmake get-deps
+compiler: 
+  -gcc
+  -clang
+
+before_script:
+  - cmake 
+
+script: make
