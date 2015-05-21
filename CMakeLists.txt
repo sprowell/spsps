@@ -25,7 +25,7 @@ FILE(GLOB_RECURSE lib_sources RELATIVE ${CMAKE_HOME_DIRECTORY} c/*.c)
 include_directories( AFTER SYSTEM include c )
 
 if( CMAKE_COMPILER_IS_GNUCC )
-     SET ( CMAKE_C_FLAGS "-D_BSD_SOURCE -std=c11" ) 
+     SET ( CMAKE_C_FLAGS "-D_BSD_SOURCE -std=c99" ) 
 endif( CMAKE_COMPILER_IS_GNUCC )
 
 # Figure out if this is a debug or release.
