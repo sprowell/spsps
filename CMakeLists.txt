@@ -37,17 +37,23 @@ endif( NOT CMAKE_BUILD_TYPE )
 include_directories( AFTER SYSTEM src )
 
 # Build the core library.
-add_library( spsps SHARED ${lib_sources} )
+add_library( spsps_shared SHARED ${lib_sources} )
+add_library( spsps_static STATIC ${lib_sources} )
+set_property( TARGET spsps_static PROPERTY POSITION_INDEPENDENT_CODE 1 )
+if( UNIX )
+    set_target_properties(spsps_shared PROPERTIES OUTPUT_NAME spsps)
+    set_target_properties(spsps_static PROPERTIES OUTPUT_NAME spsps)
+endif ( UNIX )
 
 # Build the JSON example.
 add_executable( json c/json.c )
-target_link_libraries( json spsps m )
+target_link_libraries( json spsps_shared m )
 
 # Build the tests.
 add_executable( string_test test/string_test.c )
-target_link_libraries( string_test spsps m )
+target_link_libraries( string_test spsps_shared m )
 add_executable( double_parser test/double_parser.c )
-target_link_libraries( double_parser spsps m )
+target_link_libraries( double_parser spsps_shared m )
 
 # Add a documentation target.  First we have to find doxygen.
 find_program( doxygen_path doxygen PATHS ENV PATH NO_DEFAULT_PATH )
