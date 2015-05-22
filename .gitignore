@@ -30,3 +30,6 @@ string_test
 doc/api
 iprofiler
 double_parser
+
+#build folder
+build/
