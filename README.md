@@ -8,19 +8,26 @@ This is a little project to create three things:
 These are all being written in straight ANSI C (not C++).  Why C?  Well, many embedded platforms still rely on C, and also, why not?  See an answer to the question of why someone might want to use C [here][why-c].
 
 ## Building
+
+[![Build Status](https://travis-ci.org/sprowell/spsps.svg?branch=master)](https://travis-ci.org/sprowell/spsps)
+
 This requires [CMake][cmake] to build.  If you want to build the documentation then you will also need [Doxygen][doxygen].
 
 To build, run `cmake` in the root directory, and then you can build everything (except the documentation) with `make` and you can build the documentation with `make doc`.
 
 On a Mac and under Linux:
 
-	cmake -G 'Unix Makefiles'
+	mkdir build
+	cd build
+	cmake -G 'Unix Makefiles' ..
 	make
 	make doc
 
 On Windows you should do whatever is the Windows equivalent.  I think it is something like:
 
-	cmake .
+	mkdir build
+	cd build
+	cmake ..
 	make
 	make doc
 
