@@ -160,7 +160,7 @@ spsps_read_other_(Parser parser) {
 Parser
 spsps_new(char * name, FILE * stream) {
 	// Allocate a new parser.  Duplicate the name.
-	Parser parser = (Parser) malloc(sizeof(struct spsps_parser_));
+	Parser parser = (Parser) calloc(1, sizeof(struct spsps_parser_));
 	parser->at_eof = false;
 	parser->block = 0;
 	parser->eof_count = 0;
