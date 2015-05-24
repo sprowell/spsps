@@ -68,6 +68,8 @@ struct spsps_parser_ {
 	uint32_t line;
 	/// The most recent error code.
 	spsps_errno errno;
+	/// Whether the buffer been initialized the first time
+	bool initialized;
 };
 
 //======================================================================
@@ -83,6 +85,30 @@ char * spsps_printchar(SPSPS_CHAR xch) {
 		sprintf(chbuf, "U+%04x", ch);
 	}
 	return chbuf;
+}
+
+void
+spsps_read_other_(Parser parser) {
+	// Allocation: Nothing is allocated or deallocated by this method.
+	size_t count = fread(parser->blocks[parser->block^1], sizeof(SPSPS_CHAR),
+		SPSPS_LOOK, parser->stream);
+	if (count < SPSPS_LOOK) {
+		if (sizeof(SPSPS_CHAR) == 1) {
+			memset(parser->blocks[parser->block^1] + count, SPSPS_EOF,
+				SPSPS_LOOK - count);
+		} else {
+			for (; count < SPSPS_LOOK; ++count) {
+				parser->blocks[parser->block^1][count] = SPSPS_EOF;
+			} // Clear the remainder of the block.
+		}
+	}
+}
+
+void spsps_initialize_parser_(Parser parser){
+	parser->block ^= 1;
+	spsps_read_other_(parser);
+	parser->block ^= 1;
+	parser->initialized = true;
 }
 
 //======================================================================
@@ -128,28 +154,16 @@ spsps_look_(Parser parser, size_t n) {
 		parser->errno = STALLED;
 		return SPSPS_EOF;
 	}
+
+	if(!parser->initialized){
+		spsps_initialize_parser_(parser);
+	}
+
 	// Look in the correct block.
 	if (n + parser->next < SPSPS_LOOK) {
 		return parser->blocks[parser->block][n + parser->next];
 	} else {
 		return parser->blocks[parser->block^1][n + parser->next - SPSPS_LOOK];
-	}
-}
-
-void
-spsps_read_other_(Parser parser) {
-	// Allocation: Nothing is allocated or deallocated by this method.
-	size_t count = fread(parser->blocks[parser->block^1], sizeof(SPSPS_CHAR),
-		SPSPS_LOOK, parser->stream);
-	if (count < SPSPS_LOOK) {
-		if (sizeof(SPSPS_CHAR) == 1) {
-			memset(parser->blocks[parser->block^1] + count, SPSPS_EOF,
-				SPSPS_LOOK - count);
-		} else {
-			for (; count < SPSPS_LOOK; ++count) {
-				parser->blocks[parser->block^1][count] = SPSPS_EOF;
-			} // Clear the remainder of the block.
-		}
 	}
 }
 
@@ -173,6 +187,7 @@ spsps_new(char * name, FILE * stream) {
 	parser->column = 1;
 	parser->line = 1;
 	parser->errno = OK;
+	parser->initialized = false;
 	return parser;
 }
 
@@ -189,7 +204,7 @@ spsps_free(Parser parser) {
 SPSPS_CHAR
 spsps_consume(Parser parser) {
 	// Nothing is allocated or deallocated by this method.
-	SPSPS_CHAR ch = parser->blocks[parser->block][parser->next];
+	SPSPS_CHAR ch = spsps_look_(parser, 0);
 	spsps_consume_n(parser, 1);
 	parser->errno = OK;
 	return ch;
@@ -203,6 +218,11 @@ spsps_consume_n(Parser parser, size_t n) {
 		parser->errno = LOOKAHEAD_TOO_LARGE;
 		return;
 	}
+
+	if(!parser->initialized){
+		spsps_initialize_parser_(parser);
+	}
+
 	parser->errno = OK;
 	parser->look_count = 0;
 	if (parser->at_eof) {
