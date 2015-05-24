@@ -105,7 +105,6 @@ spsps_read_other_(Parser parser) {
 }
 
 void spsps_initialize_parser_(Parser parser){
-	parser->block ^= 1;
 	spsps_read_other_(parser);
 	parser->block ^= 1;
 	parser->initialized = true;
