@@ -34,7 +34,7 @@ On Windows you should do whatever is the Windows equivalent.  I think it is some
 Want an out-of-source build?  Something else?  Read the documentation for CMake and have fun!
 
 ## Unicode
-This library is intended to support UTF-8.  It is probably not there yet, but that's the goal.  See the [UTF-8 and Unicode FAQ for Unix/Linux][utf8faq] and also the [UTF-8 Everywhere Manifesto][utf8manifesto].  We follow the excellent guidelines found on the web [here][usingutf8].
+This library is intended to support UTF-8.  It is probably not there yet, but that's the goal.  See the [UTF-8 and Unicode FAQ for Unix/Linux][utf8faq] and also the [UTF-8 Everywhere Manifesto][utf8manifesto].  We follow the excellent guidelines found on the web [here][usingutf8].  Internally, both `xstring` and `mstring` are stored as UTF-8.  There are functions to convert to and from `uint32_t` arrays, and there is some support for `wchar_t`, but these are primarily intended to support Windows users.
 
 ## xstring and mstring
 To use the string library, just `#include "xstring.h"` and link with the `spsps` library.  The header file defines two new data types: `xstring` and `mstring`.

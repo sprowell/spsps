@@ -37,8 +37,8 @@ endif( NOT CMAKE_BUILD_TYPE )
 include_directories( AFTER SYSTEM src )
 
 # Build the core library.
-add_library( spsps_shared SHARED ${lib_sources} )
-add_library( spsps_static STATIC ${lib_sources} )
+add_library( spsps_shared SHARED ${lib_sources} include/utf8.h c/utf8.c)
+add_library( spsps_static STATIC ${lib_sources} include/utf8.h c/utf8.c)
 set_property( TARGET spsps_static PROPERTY POSITION_INDEPENDENT_CODE 1 )
 if( UNIX )
     set_target_properties(spsps_shared PROPERTIES OUTPUT_NAME spsps)

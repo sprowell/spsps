@@ -40,6 +40,9 @@
 #include <stdio.h>
 #include <ctype.h>
 
+// Internal storage is in bytes, so we use arrays of uint8_t.
+typedef uint8_t xch;
+
 /* Some notes.
  *
  * Never allocate any space for an xstring unless it is going to
@@ -49,7 +52,7 @@
 
 struct xstring_ {
 	/* How this works.
-	 * The cstr points to a character array of xchars.  It can be
+	 * The cstr points to a character array of xchs.  It can be
 	 * NULL, which should be treated the same as the empty string.
 	 * The length is the length of the string.  Storing the length
 	 * allows the character array to contain null characters (\0).
@@ -57,7 +60,7 @@ struct xstring_ {
 	 * It is assumed throughout this library that if length is not
 	 * zero, then cstr is not NULL.  Pay attention to this invariant!
 	 */
-	xchar * cstr;
+	xch * cstr;
 	size_t length;
 };
 
@@ -66,7 +69,7 @@ struct mstring_ {
 	 * Mutable strings always allocate memory, even when the string
 	 * is empty.  This allows them to be quickly added to, which is
 	 * the primary use case for a mutable string.  The cstr points
-	 * to a character array of xchars.  It cannot be NULL; it is
+	 * to a character array of xchs.  It cannot be NULL; it is
 	 * always allocated, except when the string is deallocated.  The
 	 * local_capacity is the length of the cstr.  The local_length is
 	 * the number of characters used in the cstr.  When the capacity
@@ -77,7 +80,7 @@ struct mstring_ {
 	 * If is assumed throughout this library that if length is not zero
 	 * then cstr is not NULL.  Pay attention to this invariant!
 	 */
-	xchar * cstr;
+	xch * cstr;
 	size_t local_capacity;
 	size_t local_length;
 	size_t length;
@@ -89,13 +92,12 @@ mstr_inspect(mstring str) {
 	printf("Inspecting mstring:\n");
 	while (str != NULL) {
 		printf("  mstring {\n");
-		printf("     sizeof(xchar) = %lu\n", SPSPS_CHAR_SIZE);
 		printf("    local_capacity = %lu\n", str->local_capacity);
 		printf("      local_length = %lu\n", str->local_length);
 		printf("            length = %lu\n", str->length);
 		printf("              cstr = [");
 		int count = 16;
-		size_t truelength = SPSPS_CHAR_SIZE * str->local_length;
+		size_t truelength = str->local_length;
 		for (int index = 0; index < truelength; ++index) {
 			unsigned char ch = * ((unsigned char *) str->cstr + index);
 			if (isprint(ch)) {
@@ -115,7 +117,7 @@ mstr_inspect(mstring str) {
 		}
 		printf("/* local_length boundary */");
 		printf("\n                      ");
-		size_t fulllength = SPSPS_CHAR_SIZE * str->local_capacity;
+		size_t fulllength = str->local_capacity;
 		for (size_t index = truelength; index < fulllength; ++index) {
 			unsigned char ch = * ((unsigned char *) str->cstr + index);
 			if (isprint(ch)) {
@@ -156,7 +158,7 @@ mstr_new(size_t capacity) {
 	empty->local_length = 0;
 	empty->length = 0;
 	empty->next = NULL;
-	empty->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE * capacity);
+	empty->cstr = (xch *) malloc(capacity);
 	empty->local_capacity = capacity;
 	return empty;
 }
@@ -200,9 +202,9 @@ xstr_wrap(char * value) {
 	if (len == 0) return NULL;
 	xstring str = xstr_new();
 	str->length = len;
-	str->cstr = (xchar *) malloc(len * SPSPS_CHAR_SIZE);
+	str->cstr = (xch *) malloc(len);
 	for (size_t index = 0; index < len; ++index) {
-		str->cstr[index] = (xchar) value[index];
+		str->cstr[index] = (xch) value[index];
 	} // Copy all characters, converting if necessary.
 	return str;
 }
@@ -222,7 +224,7 @@ mstr_wrap(char * value) {
 	str->length = len;
 	str->local_length = len;
 	for (size_t index = 0; index < len; ++index) {
-		str->cstr[index] = (xchar) value[index];
+		str->cstr[index] = (xch) value[index];
 	} // Copy all characters, converting if necessary.
 	return str;
 }
@@ -235,53 +237,12 @@ mstr_wrap_f(char * value) {
 }
 
 xstring
-xstr_wwrap(wchar_t * value) {
-	size_t len = (value == NULL) ? 0 : wcslen(value);
-	// If the length is zero, don't allocate anything.
-	if (len == 0) return NULL;
-	xstring str = xstr_new();
-	str->length = len;
-	str->cstr = (xchar *) malloc(len * SPSPS_CHAR_SIZE);
-	for (size_t index = 0; index < len; ++index) {
-		str->cstr[index] = (xchar) value[index];
-	} // Copy all characters, converting if necessary.
-	return str;
-}
-
-xstring
-xstr_wwrap_f(wchar_t * value) {
-	xstring ret = xstr_wwrap(value);
-	if (value != NULL) free(value);
-	return ret;
-}
-
-mstring
-mstr_wwrap(wchar_t * value) {
-	size_t len = (value == NULL) ? 0 : wcslen(value);
-	if (len == 0) return NULL;
-	mstring str = mstr_new(len + MSTR_INC);
-	str->length = len;
-	str->local_length = len;
-	for (size_t index = 0; index < str->length; ++index) {
-		str->cstr[index] = (xchar) value[index];
-	} // Copy all characters, converting if necessary.
-	return str;
-}
-
-mstring
-mstr_wwrap_f(wchar_t * value) {
-	mstring ret = mstr_wwrap(value);
-	if (value != NULL) free(value);
-	return ret;
-}
-
-xstring
 xstr_copy(xstring other) {
 	if (other == NULL || other->length == 0) return NULL;
 	xstring str = xstr_new();
 	str->length = other->length;
-	str->cstr = (xchar *) malloc(other->length * SPSPS_CHAR_SIZE);
-	memcpy(str->cstr, other->cstr, other->length * SPSPS_CHAR_SIZE);
+	str->cstr = (xch *) malloc(other->length);
+	memcpy(str->cstr, other->cstr, other->length);
 	return str;
 }
 
@@ -293,10 +254,10 @@ mstr_copy(mstring other) {
 	str->length = len;
 	str->local_length = len;
 	mstring here = other;
-	xchar * there = str->cstr;
+	xch * there = str->cstr;
 	while (here != NULL) {
 		if (here->cstr != NULL)
-			memcpy(there, here->cstr, here->local_length * SPSPS_CHAR_SIZE);
+			memcpy(there, here->cstr, here->local_length);
 		there += here->local_length;
 		here = here->next;
 	} // Copy all blocks to the new string.
@@ -309,12 +270,12 @@ mstr_to_xstr(mstring other) {
 	if (len == 0) return NULL;
 	xstring ret = xstr_new();
 	ret->length = len;
-	ret->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE * len);
+	ret->cstr = (xch *) malloc(len);
 	mstring here = other;
-	xchar * there = ret->cstr;
+	xch * there = ret->cstr;
 	while (here != NULL) {
 		if (here->cstr != NULL)
-			memcpy(there, here->cstr, here->local_length * SPSPS_CHAR_SIZE);
+			memcpy(there, here->cstr, here->local_length);
 		there += here->local_length;
 		here = here->next;
 	} // Copy all blocks to the new string.
@@ -326,7 +287,7 @@ xstr_to_mstr(xstring other) {
 	size_t len = other == NULL ? 0 : other->length;
 	if (len == 0) return NULL;
 	mstring ret = mstr_new(len + MSTR_INC);
-	memcpy(ret->cstr, other->cstr, len * SPSPS_CHAR_SIZE);
+	memcpy(ret->cstr, other->cstr, len);
 	ret->local_length = len;
 	ret->length = len;
 	return ret;
@@ -345,63 +306,28 @@ mstr_length(mstring value) {
 }
 
 xstring
-xstr_append(xstring value, xchar ch) {
-	// We are appending a character, so the resulting string will not
-	// be empty.  Go ahead and allocate it.
-	xstring str = xstr_new();
-	if (value == NULL || value->length == 0) {
-		str->length = 1;
-		str->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE);
-		str->cstr[0] = ch;
-	} else {
-		str->length = value->length + 1;
-		str->cstr = (xchar *) malloc(str->length * SPSPS_CHAR_SIZE);
-		memcpy(str->cstr, value->cstr, value->length * SPSPS_CHAR_SIZE);
-		str->cstr[value->length] = ch;
-	}
-	return str;
+xstr_append(xstring value, spsps_char ch) {
+    size_t length;
+    uint8_t * utf8ch = utf8encode(ch, &length);
+    xstring retval =  xstr_append_cstr(value, (char *) utf8ch);
+    free(utf8ch);
+    return retval;
 }
 
 mstring
-mstr_append(mstring value, xchar ch) {
-	if (value == NULL) {
-		mstring str = mstr_new(0);
-		str->length = 1;
-		str->local_length = 1;
-		str->cstr[0] = ch;
-		return str;
-	} else {
-		// Find the last block of the string, since that is where
-		// we need to append.  As we move along we increment the
-		// length at each block.  Every block's length has been
-		// incremented, except the last one.
-		mstring here = value;
-		while (here->next != NULL) {
-			here->length++;
-			here = here->next;
-		} // Find the end of the strings block list.
-		if (here->local_length >= value->local_capacity) {
-			// We have to create a new block at this point.  Again,
-			// we increment the length at the newly-full block but
-			// the last block's length has not been incremented.
-			here->next = mstr_new(0);
-			here->length++;
-			here = here->next;
-		}
-		// Now add the character to the buffer, and increment the
-		// length here.
-		here->cstr[here->local_length] = ch;
-		here->local_length += 1;
-		here->length++;
-		return value;
-	}
+mstr_append(mstring value, spsps_char ch) {
+	size_t length;
+	uint8_t * utf8ch = utf8encode(ch, &length);
+    mstring retval = mstr_append_cstr(value, (char *) utf8ch);
+    free(utf8ch);
+    return retval;
 }
 
 xstring
-xstr_append_f(xstring value, xchar ch) {
-	xstring ret = xstr_append(value, ch);
-	xstr_free(value);
-	return ret;
+xstr_append_f(xstring value, spsps_char ch) {
+    size_t length;
+    uint8_t * utf8ch = utf8encode(ch, &length);
+    return  xstr_append_cstr_f(value, (char *) utf8ch);
 }
 
 xstring
@@ -409,19 +335,9 @@ xstr_append_cstr(xstring value, char * cstr) {
 	if (value == NULL) return xstr_wrap(cstr);
 	size_t len = (cstr == NULL) ? 0 : strlen(cstr);
 	if (len == 0) return value;
-	xchar * newstr = (xchar *) malloc(SPSPS_CHAR_SIZE * (len + value->length));
-	memcpy(newstr, value->cstr, SPSPS_CHAR_SIZE * value->length);
-#ifndef SPSPS_SIMPLE
-	if (SPSPS_ISCHAR) {
-#endif
-		memcpy(newstr + value->length, cstr, len);
-#ifndef SPSPS_SIMPLE
-	} else {
-		for (size_t index = 0; index < len; ++index) {
-			newstr[value->length + index] = cstr[index];
-		}
-	}
-#endif
+	xch * newstr = (xch *) malloc(len + value->length);
+	memcpy(newstr, value->cstr, value->length);
+    memcpy(newstr + value->length, cstr, len);
 	xstring ret = xstr_new();
 	ret->cstr = newstr;
 	ret->length = value->length + len;
@@ -454,17 +370,7 @@ mstr_append_cstr(mstring value, char * cstr) {
 	if (excess >= len) {
 		// The current block can hold this string with no
 		// additional allocation.  Copy and convert.
-#ifndef SPSPS_SIMPLE
-		if (SPSPS_ISCHAR) {
-#endif
-			memcpy(here->cstr + here->local_length, cstr, len);
-#ifndef SPSPS_SIMPLE
-		} else {
-			for (int index = 0; index < len; ++index) {
-				here->cstr[here->local_length + index] = (xchar) cstr[index];
-			}
-		}
-#endif
+        memcpy(here->cstr + here->local_length, cstr, len);
 		here->local_length += len;
 		return value;
 	}
@@ -472,17 +378,7 @@ mstr_append_cstr(mstring value, char * cstr) {
 	if (excess > 0) {
 		// We can copy a portion of the string in now.
 		here->local_length += excess;
-#ifndef SPSPS_SIMPLE
-		if (SPSPS_ISCHAR) {
-#endif
-			memcpy(here->cstr + here->local_length, cstr, excess);
-#ifndef SPSPS_SIMPLE
-		} else {
-			for (int index = 0; index < excess; ++index) {
-				here->cstr[here->local_length + index] = (xchar) cstr[index];
-			}
-		}
-#endif
+        memcpy(here->cstr + here->local_length, cstr, excess);
 		cstr += excess;
 	}
 	// We must allocate a new block to hold the rest.
@@ -510,10 +406,9 @@ xstr_concat(xstring first, xstring second) {
 	// Neither string is empty, so go ahead and allocate.
 	size_t len = first->length + second->length;
 	xstring str = xstr_new();
-	str->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE * len);
-	memcpy(str->cstr, first->cstr, first->length * SPSPS_CHAR_SIZE);
-	memcpy(str->cstr + first->length, second->cstr,
-			second->length * SPSPS_CHAR_SIZE);
+	str->cstr = (xch *) malloc(len);
+	memcpy(str->cstr, first->cstr, first->length);
+	memcpy(str->cstr + first->length, second->cstr, second->length);
 	str->length = len;
 	return str;
 }
@@ -548,129 +443,6 @@ xstr_concat_f(xstring first, xstring second) {
 	return ret;
 }
 
-xchar
-xstr_char(xstring value, size_t index) {
-	if (value == NULL) return 0;
-	if (index >= value->length) return 0;
-	return value->cstr[index];
-}
-
-xchar
-mstr_char(mstring value, size_t index) {
-	if (value == NULL) return 0;
-	if (index >= value->length) return 0;
-	while (index >= value->local_length && value->next != NULL) {
-		index -= value->local_length;
-		value = value->next;
-	} // Find the segment that contains the character.
-	if (index >= value->local_length) {
-		return 0;
-	}
-	return value->cstr[index];
-}
-
-xstring
-xstr_substr(xstring value, size_t start, size_t num) {
-	if (num == 0) return NULL;
-	// The requested substring is not empty, so allocate.
-	xstring str = xstr_new();
-	str->cstr = (xchar *) malloc(SPSPS_CHAR_SIZE * num);
-	str->length = num;
-	size_t vlen = (value == NULL) ? 0 : value->length;
-	// Now there are two ranges.  The first is characters that are
-	// in the original string and should be copied.  The second is
-	// indices that are past the end of the original string, and
-	// should be set to zero.  This happens at index value->length.
-	if (start >= vlen) {
-		// Start is past the end of the string.  The first range is
-		// empty; everything is in the second range.
-		memset(str->cstr, 0, SPSPS_CHAR_SIZE * num);
-	} else if (start + num >= vlen) {
-		// Start is in the string, but the end of the range is past
-		// the end of the string.  We need both ranges.  The number
-		// of elements in the first range is given by the following
-		// equation.
-		size_t flen = vlen - 1 - start;
-		memcpy(str->cstr, value->cstr + start, SPSPS_CHAR_SIZE * flen);
-		memset(str->cstr + flen, 0, SPSPS_CHAR_SIZE * (num - flen));
-	} else {
-		// The entire substring is inside the string.
-		memcpy(str->cstr, value->cstr + start, SPSPS_CHAR_SIZE * num);
-	}
-	return str;
-}
-
-mstring
-mstr_substr(mstring value, size_t start, size_t num) {
-	if (num == 0) return NULL;
-	// The requested string is not empty, so allocate it.
-	mstring str = mstr_new(num + MSTR_INC);
-	size_t vlen = (value == NULL) ? 0 : value->length;
-	// Now there are two ranges.  The first is characters that are
-	// in the original string and should be copied.  The second is
-	// indices that are past the end of the original string, and
-	// should be set to zero.  This happens at index value->length.
-	if (start >= vlen) {
-		// Start is past the end of the string.  The first range is
-		// empty; everything is in the second range.
-		memset(str->cstr, 0, SPSPS_CHAR_SIZE * num);
-		return str;
-	}
-	// Now we have to extract characters from the string, but the
-	// string may have multiple blocks.  We still need to know how
-	// many characters to extract from the string.
-	size_t flen;
-	if (start + num >= vlen) {
-		// Start is in the string, but the end of the range is past
-		// the end of the string.  We need both ranges.
-		flen = vlen - 1 - start;
-		memset(str->cstr + flen, 0, SPSPS_CHAR_SIZE * (num - flen));
-	} else {
-		// The entire substring is inside the string.
-		flen = num;
-	}
-	// Now we just have to extract flen characters from this string,
-	// starting at position start.  Find the block containing the
-	// start position.
-	while (start >= value->local_length) {
-		start -= value->local_length;
-		value = value->next;
-	} // Find the block containing the start position.
-	// Extract the desired characters.
-	xchar * here = str->cstr;
-	while (flen > 0) {
-		// We are copying from this block.  Figure out the number of
-		// characters available in this block.
-		size_t len = value->local_length - start;
-		// Figure out how many we want.  It may be all of them, or
-		// only some.
-		size_t count = (len >= flen) ? flen : len;
-		// Copy those characters.
-		flen -= count;
-		memcpy(here, value->cstr + start, count);
-		here += count;
-		// We start from the beginning of the next block if we need
-		// more characters.
-		value = value->next;
-		start = 0;
-	} // Extract the desired characters.
-	return str;
-}
-
-xstring
-xstr_substr_f(xstring value, size_t start, size_t num) {
-	xstring ret = xstr_substr(value, start, num);
-	xstr_free(value);
-	return ret;
-}
-
-mstring
-mstr_substr_f(mstring value, size_t start, size_t num) {
-	mstring ret = mstr_substr(value, start, num);
-	mstr_free(value);
-	return ret;
-}
-
 int
 xstr_strcmp(xstring lhs, xstring rhs) {
 	if (lhs == rhs) return 0;
@@ -688,8 +460,8 @@ xstr_strcmp(xstring lhs, xstring rhs) {
 		// Then lhs > rhs.
 		return 1;
 	}
-	xchar * lhsp = lhs->cstr;
-	xchar * rhsp = rhs->cstr;
+	xch * lhsp = lhs->cstr;
+	xch * rhsp = rhs->cstr;
 	while (lhslen > 0) {
 		if (rhslen == 0) {
 			// The right hand side is exhausted.  The left hand
@@ -739,8 +511,8 @@ mstr_strcmp(mstring lhs, mstring rhs) {
 	// and we are pointing to a block with content.
 	size_t lhsll = (lhs == NULL) ? 0 : lhs->local_length;
 	size_t rhsll = (rhs == NULL) ? 0 : rhs->local_length;
-	xchar * lhsp = (lhs == NULL) ? NULL : lhs->cstr;
-	xchar * rhsp = (rhs == NULL) ? NULL : rhs->cstr;
+	xch * lhsp = (lhs == NULL) ? NULL : lhs->cstr;
+	xch * rhsp = (rhs == NULL) ? NULL : rhs->cstr;
 	while (lhs != NULL && rhs != NULL) {
 		if (*lhsp < *rhsp) return -1;
 		if (*lhsp > *rhsp) return 1;
@@ -794,19 +566,7 @@ xstr_cstr(xstring value) {
 	char * cstr = (char *) malloc(value->length + 1);
 	// For performance handle the special case that the user is
 	// using chars.
-#ifndef SPSPS_SIMPLE
-	if (SPSPS_ISCHAR) {
-#endif
-		memcpy(cstr, value->cstr, value->length);
-#ifndef SPSPS_SIMPLE
-	} else {
-		// We have to copy so each character is downconverted to a
-		// simple char.
-		for (size_t index = 0; index < value->length; ++index) {
-			cstr[index] = (char) xstr_char(value, index);
-		} // Convert and copy all characters.
-	}
-#endif
+    memcpy(cstr, value->cstr, value->length);
 	// Null terminate.
 	cstr[value->length] = 0;
 	return cstr;
@@ -830,26 +590,11 @@ mstr_cstr(mstring value) {
 	char * cstr = (char *) malloc(value->length + 1);
 	mstring here = value;
 	char * there = cstr;
-#ifndef SPSPS_SIMPLE
-	int simple = SPSPS_ISCHAR;
-#endif
 	while (here != NULL) {
 		if (here->cstr != NULL) {
 			// For performance handle the special case that the user is
 			// using chars.
-#ifndef SPSPS_SIMPLE
-			if (simple) {
-#endif
-				memcpy(there, here->cstr, here->local_length);
-#ifndef SPSPS_SIMPLE
-			} else {
-				// We have to copy so each character is downconverted to a
-				// simple char.
-				for (size_t index = 0; index < here->local_length; ++index) {
-					there[index] = (char) here->cstr[index];
-				} // Convert and copy all characters.
-			}
-#endif
+            memcpy(there, here->cstr, here->local_length);
 		}
 		there += here->local_length;
 		here = here->next;
@@ -866,71 +611,42 @@ mstr_cstr_f(mstring value) {
 	return ret;
 }
 
-wchar_t *
-xstr_wcstr(xstring value) {
-	if (value == NULL || value->length == 0) {
-		// We have to return something the caller can free.
-		wchar_t * empty = (wchar_t *) malloc(sizeof(wchar_t));
-		empty[0] = 0;
-		return empty;
-	}
-	wchar_t * wcstr = (wchar_t *) malloc(sizeof(wchar_t) * (value->length + 1));
-	// For performance handle the special case that the user is
-	// using wchar_t.
-	if (SPSPS_CHAR_SIZE == sizeof(wchar_t)) {
-		memcpy(wcstr, value->cstr, value->length * sizeof(wchar_t));
-	} else {
-		// We have to copy so each character is converted to a
-		// wide character.
-		for (size_t index = 0; index < value->length; ++index) {
-			wcstr[index] = (wchar_t) xstr_char(value, index);
-		} // Convert and copy all characters.
-	}
-	// Null terminate.
-	wcstr[value->length] = 0;
-	return wcstr;
+spsps_char *
+xstr_decode(xstring value, size_t * length) {
+    return NULL;
 }
 
-wchar_t *
-xstr_wcstr_f(xstring value) {
-	wchar_t * ret = xstr_wcstr(value);
-	xstr_free(value);
-	return ret;
+spsps_char *
+mstr_decode(mstring value, size_t * length) {
+    return NULL;
 }
 
-wchar_t *
-mstr_wcstr(mstring value) {
-	if (value == NULL || value->length == 0) {
-		// We have to return an array the caller can free.
-		wchar_t * empty = (wchar_t *) malloc(sizeof(wchar_t));
-		empty[0] = 0;
-		return empty;
-	}
-	wchar_t * wcstr = (wchar_t *) malloc(sizeof(wchar_t) * (value->length + 1));
-	mstring here = value;
-	wchar_t * there = wcstr;
-	int simple = (SPSPS_CHAR_SIZE == sizeof(wchar_t));
-	while (here != NULL) {
-		if (here->cstr != NULL) {
-			if (simple) {
-				memcpy(there, here->cstr, here->local_length * sizeof(wchar_t));
-			} else {
-				for (size_t index = 0; index < here->local_length; ++index) {
-					there[index] = (wchar_t) here->cstr[index];
-				} // Copy and convert all characters.
-			}
-		}
-		there += here->local_length;
-		here = here->next;
-	} // Copy all blocks to the new string.
-	// Null terminate.
-	wcstr[value->length] = 0;
-	return wcstr;
+spsps_char *
+xstr_decode_f(xstring value, size_t * length) {
+    return NULL;
 }
 
-wchar_t *
-mstr_wcstr_f(mstring value) {
-	wchar_t * ret = mstr_wcstr(value);
-	mstr_free(value);
-	return ret;
+spsps_char *
+mstr_decode_f(mstring value, size_t * length) {
+    return NULL;
+}
+
+xstring
+xstr_encode(spsps_char *value, size_t length) {
+    return NULL;
+}
+
+mstring
+mstr_encode(spsps_char *value, size_t length) {
+    return NULL;
+}
+
+xstring
+xstr_encode_f(spsps_char *value, size_t length) {
+    return NULL;
+}
+
+mstring
+mstr_encode_f(spsps_char *value, size_t length) {
+    return NULL;
 }

@@ -38,8 +38,8 @@
  */
 
 #include <stddef.h>
-#include <wchar.h>
 #include <stdbool.h>
+#include "utf8.h"
 
 /// Opaque type for a string.
 typedef struct xstring_ * xstring;
@@ -76,22 +76,6 @@ typedef struct mstring_ * mstring;
 	free(cstring); \
 }
 
-/// Opaque type for a character.  The default is char.  To override the
-/// default, \#define this prior to inclusion.
-#ifdef SPSPS_CHAR
-	typedef SPSPS_CHAR xchar;
-#	define TOCHAR(m_ch) ((char) m_ch)
-#	define SPSPS_CHAR_SIZE sizeof(SPSPS_CHAR)
-#	define SPSPS_ISCHAR (SPSPS_CHAR_SIZE == sizeof(char))
-#	undef SPSPS_SIMPLE
-#else
-	typedef char xchar;
-#	define TOCHAR(m_ch) (m_ch)
-#	define SPSPS_CHAR_SIZE sizeof(char)
-#	define SPSPS_ISCHAR true
-#	define SPSPS_SIMPLE
-#endif
-
 /// Incremental size to use for mutable string.  To override this \#define
 /// it prior to inclusion.
 #ifndef MSTR_INC
@@ -118,7 +102,9 @@ xstring xstr_new();
 
 /**
  * Make a new empty mutable string.  If the capacity is zero, then
- * a default capacity (MSTR_INC) is used.  O(1).
+ * a default capacity (MSTR_INC) is used.  O(1).  Note that the
+ * capacity is specified in bytes, not characters, due to the UTF-8
+ * encoding.
  * @param capacity		The initial capacity of the string.
  * @return				The new mutable string.
  */
@@ -143,29 +129,29 @@ void mstr_free(mstring value);
 
 /**
  * Convert a C null-terminated string into an xstring.  The input
- * C string is converted to the proper characters and is not needed
- * subsequent to this call.  The caller should deallocate it.
- * O(len(value)) because each character must be converted and copied.
- * @param value			The null-terminate C string.
+ * C string is not needed subsequent to this call.  The caller should
+ * deallocate it.  Note that the string is assumed to be UTF-8.
+ * O(len(value)) because each character must be copied.
+ * @param value			The null-terminated UTF-8 C string.
  * @return				The new immutable string.
  */
 xstring xstr_wrap(char * value);
 
 /**
  * Convert a C null-terminated string into an xstring.  The input
- * C string is converted to the proper characters and is not needed
- * subsequent to this call, and is explicitly deallocated.
- * O(len(value)) because each character must be converted and copied.
- * @param value			The null-terminate C string.
+ * C string is not needed subsequent to this call, and is explicitly
+ * deallocated.  Note that the string is assumed to be UTF-8.
+ * O(len(value)) because each character must be copied.
+ * @param value			The null-terminated UTF-8 C string.
  * @return				The new immutable string.
  */
 xstring xstr_wrap_f(char * value);
 
 /**
  * Convert a C null-terminated string into an mstring.  The input
- * C string is converted to the proper characters and is not needed
- * subsequent to this call.  The caller should deallocate it.
- * O(len(value)) because each character must be converted and copied.
+ * C string is not needed subsequent to this call.  The caller should
+ * deallocate it.  Note that the string is assumed to be UTF-8.
+ * O(len(value)) because each character must be copied.
  * @param value			The null-terminated C string.
  * @return				The new mutable string.
  */
@@ -173,53 +159,13 @@ mstring mstr_wrap(char * value);
 
 /**
  * Convert a C null-terminated string into an mstring.  The input
- * C string is converted to the proper characters and is not needed
- * subsequent to this call, and is explicitly deallocated.
- * O(len(value)) because each character must be converted and copied.
+ * C string is not needed subsequent to this call, and is explicitly
+ * deallocated.  Note that the string is assumed to be UTF-8.
+ * O(len(value)) because each character must be copied.
  * @param value			The null-terminated C string.
  * @return				The new mutable string.
  */
 mstring mstr_wrap_f(char * value);
-
-/**
- * Convert a C null-terminated string into an xstring.  The input
- * C string is converted to the proper characters and is not needed
- * subsequent to this call.  The caller should deallocate it.
- * O(len(value)) because each character must be converted and copied.
- * @param value			The null-terminate C string.
- * @return				The new immutable string.
- */
-xstring xstr_wwrap(wchar_t * value);
-
-/**
- * Convert a C null-terminated string into an xstring.  The input
- * C string is converted to the proper characters and is not needed
- * subsequent to this call, and is explicitly deallocated.
- * O(len(value)) because each character must be converted and copied.
- * @param value			The null-terminate C string.
- * @return				The new immutable string.
- */
-xstring xstr_wwrap_f(wchar_t * value);
-
-/**
- * Convert a C null-terminated string into an mstring.  The input
- * C string is converted to the proper characters and is not needed
- * subsequent to this call.  The caller should deallocate it.
- * O(len(value)) because each character must be converted and copied.
- * @param value			The null-terminated C string.
- * @return				The new mutable string.
- */
-mstring mstr_wwrap(wchar_t * value);
-
-/**
- * Convert a C null-terminated string into an mstring.  The input
- * C string is converted to the proper characters and is not needed
- * subsequent to this call, and is explicitly deallocated.
- * O(len(value)) because each character must be converted and copied.
- * @param value			The null-terminated C string.
- * @return				The new mutable string.
- */
-mstring mstr_wwrap_f(wchar_t * value);
 
 /**
  * Create a copy of the string.  The resulting copy is independent
@@ -257,16 +203,16 @@ xstring mstr_to_xstr(mstring other);
 mstring xstr_to_mstr(xstring other);
 
 /**
- * Obtain the length of the string, in characters.  O(1).
+ * Obtain the length of the string, in bytes.  O(1).
  * @param value			The string.
- * @return				The number of characters in the string.
+ * @return				The number of bytes in the string.
  */
 size_t xstr_length(xstring value);
 
 /**
- * Obtain the length of the string, in characters.  O(1).
+ * Obtain the length of the string, in bytes.  O(1).
  * @param value			The string.
- * @return				The number of charactesr in the string.
+ * @return				The number of bytes in the string.
  */
 size_t mstr_length(mstring value);
 
@@ -279,7 +225,7 @@ size_t mstr_length(mstring value);
  * @param ch			The character to add.
  * @return				The new string.
  */
-xstring xstr_append(xstring value, xchar ch);
+xstring xstr_append(xstring value, spsps_char ch);
 
 /**
  * Append a character to the end of the string.  This modifies the
@@ -291,7 +237,7 @@ xstring xstr_append(xstring value, xchar ch);
  * @param ch			The character to add.
  * @return				The string.
  */
-mstring mstr_append(mstring value, xchar ch);
+mstring mstr_append(mstring value, spsps_char ch);
 
 /**
  * Append a character to the end of the string.  A new string is
@@ -303,7 +249,7 @@ mstring mstr_append(mstring value, xchar ch);
  * @param ch			The character to add.
  * @return				The new string.
  */
-xstring xstr_append_f(xstring value, xchar ch);
+xstring xstr_append_f(xstring value, spsps_char ch);
 
 /**
  * Append a C string to the end of the given xstring.  The
@@ -311,7 +257,7 @@ xstring xstr_append_f(xstring value, xchar ch);
  * by the caller.  The input string not modified; a new string is
  * returned.  O(len(value)+len(cstr)).
  * @param value			The string.
- * @param cstr			The string to append.
+ * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
 xstring xstr_append_cstr(xstring value, char * cstr);
@@ -323,7 +269,7 @@ xstring xstr_append_cstr(xstring value, char * cstr);
  * Because the input C string is deallocated, you should not use
  * string literals.  O(len(value)+len(cstr)).
  * @param value			The string.
- * @param cstr			The string to append.
+ * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
 xstring xstr_append_cstr_f(xstring value, char * cstr);
@@ -335,7 +281,7 @@ xstring xstr_append_cstr_f(xstring value, char * cstr);
  * O(C*len(value)+len(cstr)) because the last block must be found
  * and the C string converted and copied.
  * @param value			The string.
- * @param cstr			The string to append.
+ * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
 mstring mstr_append_cstr(mstring value, char * cstr);
@@ -348,7 +294,7 @@ mstring mstr_append_cstr(mstring value, char * cstr);
  * O(C*len(value)+len(cstr)) because the last block must be found and
  * the C string converted and copied.
  * @param value			The string.
- * @param cstr			The string to append.
+ * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
 mstring mstr_append_cstr_f(mstring value, char * cstr);
@@ -386,78 +332,6 @@ mstring mstr_concat(mstring first, mstring second);
  * @return				The new string.
  */
 xstring xstr_concat_f(xstring first, xstring second);
-
-/**
- * Obtain a character from the given string.  If the index is out
- * of range of the string, then the null character is returned (0).
- * O(1).
- * @param value			The string.
- * @param index			The zero-based index of the character.
- * @return				The requested character.
- */
-xchar xstr_char(xstring value, size_t index);
-
-/**
- * Obtain a character from the given string.  If the index is out
- * of range of the string, then the null character is returned (0).
- * O(C*len(index)) because the block list must be traversed.
- * @param value			The string.
- * @param index			The zero-based index of the character.
- * @return				The requested character.
- */
-xchar mstr_char(mstring value, size_t index);
-
-/**
- * Extract a substring from the given string.  The substring can
- * be empty.  If the start position is out of the string's range,
- * or the number of characters is too large, or both, then the
- * returned string is padded with null characters (0).  O(num).
- * @param value			The string.
- * @param start			The zero-based index of the first character.
- * @param num			The number of characters to extract.
- * @return				The requested substring.
- */
-xstring xstr_substr(xstring value, size_t start, size_t num);
-
-/**
- * Extract a substring from the given string.  The substring can
- * be empty.  If the start position is out of the string's range,
- * or the number of characters is too large, or both, then the
- * returned string is padded with null characters (0).
- * O(C*start+num) because the block index must be
- * traversed.
- * @param value			The string.
- * @param start			The zero-based index of the first character.
- * @param num			The number of characters to extract.
- * @return				The requested substring.
- */
-mstring mstr_substr(mstring value, size_t start, size_t num);
-
-/**
- * Extract a substring from the given string.  The substring can
- * be empty.  If the start position is out of the string's range,
- * or the number of characters is too large, or both, then the
- * returned string is padded with null characters (0).  The input
- * string is explicitly deallocated.  O(num).
- * @param value			The string.
- * @param start			The zero-based index of the first character.
- * @param num			The number of characters to extract.
- * @return				The requested substring.
- */
-xstring xstr_substr_f(xstring value, size_t start, size_t num);
-
-/**
- * Extract a substring from the given string.  The substring can
- * be empty.  If the start position is out of the string's range,
- * or the number of characters is too large, or both, then the
- * returned string is padded with null characters (0).  The input
- * string is explicitly deallocated.  O(C*start+num).
- * @param value			The string.
- * @param start			The zero-based index of the first character.
- * @param num			The number of characters to extract.
- * @return				The requested substring.
- */
-mstring mstr_substr_f(mstring value, size_t start, size_t num);
 
 /**
  * Compare two strings.  The return value is the standard C
@@ -520,37 +394,87 @@ char * mstr_cstr(mstring value);
 char * mstr_cstr_f(mstring value);
 
 /**
- * Convert a string into a C null-terminated wide character array.
- * O(len(value)).
- * @param value			The string.
- * @return				The null-terminated array of wide characters.
+ * Decode the internal UTF-8 representation of the string into a
+ * sequence of Unicode code points.
+ * @param value		The string to decode.
+ * @param length	Number of code points in the returned array.
+ * 					This is ignored if it is NULL.
+ * @return			The null-terminated sequence of code points.
  */
-wchar_t * xstr_wcstr(xstring value);
+spsps_char * xstr_decode(xstring value, size_t * length);
 
 /**
- * Convert a string into a C null-terminated wide character array.
- * The input string is explicitly deallocated.  O(len(value)).
- * @param value			The string.
- * @return				The null-terminated array of wide characters.
+ * Decode the internal UTF-8 representation of the string into a
+ * sequence of Unicode code points.
+ * @param value		The string to decode.
+ * @param length	Number of code points in the returned array.
+ * 					This is ignored if it is NULL.
+ * @return			The null-terminated sequence of code points.
  */
-wchar_t * xstr_wcstr_f(xstring value);
+spsps_char * mstr_decode(mstring value, size_t * length);
 
 /**
- * Convert a string into a C null-terminated wide character array and
- * return it.  The caller is responsible for freeing the returned
- * string.  O(len(value)).
- * @param value			The string.
- * @return				The null-terminated array of wide chars.
+ * Decode the internal UTF-8 representation of the string into a
+ * sequence of Unicode code points.  The input string is explicitly
+ * deallocated.
+ * @param value		The string to decode.
+ * @param length	Number of code points in the returned array.
+ * 					This is ignored if it is NULL.
+ * @return			The null-terminated sequence of code points.
  */
-wchar_t * mstr_wcstr(mstring value);
+spsps_char * xstr_decode_f(xstring value, size_t * length);
 
 /**
- * Convert a string into a C null-terminated wide character array and
- * return it.  The caller is responsible for freeing the returned
- * string.  The input string is explicitly deallocated.  O(len(value)).
- * @param value			The string.
- * @return				The null-terminated array of wide chars.
+ * Decode the internal UTF-8 representation of the string into a
+ * sequence of Unicode code points.  The input string is explicitly
+ * deallocated.
+ * @param value		The string to decode.
+ * @param length	Number of code points in the returned array.
+ * 					This is ignored if it is NULL.
+ * @return			The null-terminated sequence of code points.
  */
-wchar_t * mstr_wcstr_f(mstring value);
+spsps_char * mstr_decode_f(mstring value, size_t * length);
+
+/**
+ * Encode the sequence of Unicode code points into a string.
+ * @param value		The sequence of code points.  If this is NULL,
+ * 					it is treated as the empty sequence, and length
+ * 					is ignored.
+ * @param length	The length of the provided sequence.
+ * @return			The string.
+ */
+xstring xstr_encode(spsps_char * value, size_t length);
+
+/**
+ * Encode the sequence of Unicode code points into a string.
+ * @param value		The sequence of code points.  If this is NULL,
+ * 					it is treated as the empty sequence, and length
+ * 					is ignored.
+ * @param length	The length of the provided sequence.
+ * @return			The string.
+ */
+mstring mstr_encode(spsps_char * value, size_t length);
+
+/**
+ * Encode the sequence of Unicode code points into a string.
+ * The input sequence is explicitly freed.
+ * @param value		The sequence of code points.  If this is NULL,
+ * 					it is treated as the empty sequence, and length
+ * 					is ignored.
+ * @param length	The length of the provided sequence.
+ * @return			The string.
+ */
+xstring xstr_encode_f(spsps_char * value, size_t length);
+
+/**
+ * Encode the sequence of Unicode code points into a string.
+ * The input sequence is explicitly freed.
+ * @param value		The sequence of code points.  If this is NULL,
+ * 					it is treated as the empty sequence, and length
+ * 					is ignored.
+ * @param length	The length of the provided sequence.
+ * @return			The string.
+ */
+mstring mstr_encode_f(spsps_char * value, size_t length);
 
 #endif /* SPSPS_XSTRING_H_ */
