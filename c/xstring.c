@@ -623,7 +623,9 @@ mstr_decode(mstring value, size_t * length) {
 
 spsps_char *
 xstr_decode_f(xstring value, size_t * length) {
-    return NULL;
+    spsps_char * retval = xstr_decode(value, length);
+    xstr_free(value);
+    return retval;
 }
 
 spsps_char *
