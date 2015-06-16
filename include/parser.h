@@ -41,21 +41,19 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "utf8.h"
 
-/// The number of characters to read at once.  This is also the lookahead limit.
-/// To override this value \#define it prior to inclusion.
+/// The number of bytes to read at once.  This is also the lookahead limit.
+/// To override this value \#define it prior to inclusion.  Note that this
+/// is a byte-based value, not a character-based value.
 #ifndef SPSPS_LOOK
     #define SPSPS_LOOK (4096)
 #endif
 
-/// The kind of character to parse.  To override this \#define it prior to
-/// inclusion.
-#ifndef SPSPS_CHAR
- 	#define SPSPS_CHAR char
-#endif
-
-/// The end of file marker.
-#define SPSPS_EOF ((SPSPS_CHAR)-1)
+/// The end of file marker.  Note that this cannot be 0x3 or 0x4 because
+/// these are valid code points.  So instead we use this value, which is
+/// not a valid code point.
+#define SPSPS_EOF 0xFFFFFFFF
 
 // If you #define SPSPS_SHORTHAND, then you get shorter names for the methods
 // that might conflict with other names.  It's up to you.
@@ -96,9 +94,12 @@ typedef enum spsps_errno {
 	OK = 0,
 	/// Lookahead past the SPSPS_LOOK limit.
 	LOOKAHEAD_TOO_LARGE,
-	/// The parser has likely stalled at the end of file.
+	/// The parser has likely stalled at the end of file.  This indicates that
+	/// too many attempts have been made to peek at the next character after
+	/// the end of file has been reached.
 	STALLED_AT_EOF,
-	/// The parser has likely stalled.
+	/// The parser has likely stalled.  This indicates too many peeks at the
+	/// next character without anything ever being consumed.
 	STALLED
 } spsps_errno;
 
@@ -110,14 +111,16 @@ typedef enum spsps_errno {
 char * spsps_loc_to_string(Loc * loc);
 
 /// The destination for error messages.  To override this \#define it prior to
-/// inclusion.  It must specify an open FILE* destination.
+/// inclusion.  It must specify an open FILE* destination.  By default this
+/// will be stderr.  If you set this to NULL, you will suppress messages.  This
+/// must be done at compile time.
 #ifndef SPSPS_STDERR
-	#define SPSPS_STDERR stderr
+	#define SPSPS_STDERR (stderr)
 #endif
 
 /**
  * Print an error message from a parser.  The message is sent to the
- * standard error stream.  If the parser is not NULL, then the location is
+ * SPSPS_STDERR stream.  If the parser is not NULL, then the location is
  * obtained and printed.  If the message is not NULL, then it is printed
  * (as a format string) and subsequent arguments are the arguments to the
  * format string.  If you wish to use a different stream, either redirect
@@ -125,6 +128,9 @@ char * spsps_loc_to_string(Loc * loc);
  * @param m_parser			The parser.
  * @param m_msg				The message (a format string) plus arguments.
  */
+#if SPSPS_STDERR == NULL
+#define SPSPS_ERR(m_parser, m_msg, ...)
+#else
 #define SPSPS_ERR(m_parser, m_msg, ...) { \
 	if ((m_parser) != NULL) { \
 		Loc * loc = spsps_loc(m_parser); \
@@ -144,6 +150,7 @@ char * spsps_loc_to_string(Loc * loc);
 		} \
 	} \
 }
+#endif
 
 /**
  * A parser object is an opaque pointer.
@@ -151,19 +158,25 @@ char * spsps_loc_to_string(Loc * loc);
 typedef struct spsps_parser_ * Parser;
 
 /**
- * Format and return a string representation of the given character as a
- * Unicode character.  The same buffer is used every time, so do not
- * deallocate the return, but do copy it if you want to preserve it.
- * The return value will have the form "U+hhhh (c)", where hhhh is the four
- * digit hex value of the character (if it is 16-bit Unicode) and c is the
- * character itself (if it is printable).  If the character is not printable
- * (as determined by the isprint C library function, then the " (c)" part
- * is suppressed.  If this is outside the 16-bit Unicode range, the results
+ * Format and return a string representation of the given Unicode code point.
+ * It is assumed that the provided character is valid.  The return value will
+ * have the format "U+HHHH (c)", where HHHH is the four-digit (for BMP),
+ * five-digit, or six-digit code point hexadecimal value.  (Note: At the time
+ * of writing, this is the standard way to represent Unicode code points.)
+ *
+ * If the character is not an ISO control character (the code points U+0000
+ * through U+001F and U+007F through U+009F, inclusive) then it is considered
+ * printable, and it is printed in place of the c.  Otherwise the " (c)" is
+ * omitted.  Note this is not prefect, as it ignores combining code points and
+ * the current locale.
+ *
+ * If the input character is not a valid Unicode code point, then the results
  * are unpredictable.
+ *
  * @param xch			The character.
  * @return				The formatted display for the character.
  */
-char * spsps_printchar(SPSPS_CHAR xch);
+char * spsps_printchar(utf32_char xch);
 
 /**
  * Create a new parser instance.  The caller is responsible for freeing the
@@ -171,7 +184,10 @@ char * spsps_printchar(SPSPS_CHAR xch);
  * copied to new allocated memory, and the caller is responsible for freeing
  * the first argument, if necessary.
  * @param name 			The name of the stream.  Typically a file name.
- * @param stream 		A stream to parse.
+ *                      If the name is NULL, then the default name "(console)"
+ *                      is used.
+ * @param stream 		A stream to parse.  If the stream is NULL, then the
+ *                      stream is treated as if it were empty.
  * @return 				The new parser instance.
  */
 Parser spsps_new(char * name, FILE * stream);
@@ -187,10 +203,12 @@ void spsps_free(Parser parser);
  * @param parser 		The parser.
  * @return 				The next character in the stream.
  */
-SPSPS_CHAR spsps_consume(Parser parser);
+utf32_char spsps_consume(Parser parser);
 
 /**
- * Consume and discard the next few characters from the stream.
+ * Consume and discard the next few characters from the stream.  Note that this
+ * may be more efficient than calling spsps_consume if you just want to consume
+ * and discard the next character, since it does not perform UTF-8 decoding.
  * @param parser 		The parser.
  * @param n 			The number of characters to discard.
  */
@@ -199,7 +217,8 @@ void spsps_consume_n(Parser parser, size_t n);
 /**
  * Consume and discard all whitespace.  When this method returns the next
  * character is the first non-whitespace character, or the end of file has
- * been reached.
+ * been reached.  This uses the iswspace library function, which in turn uses
+ * the current locale.
  * @param parser 		The parser.
  */
 void spsps_consume_whitespace(Parser parser);
@@ -226,7 +245,7 @@ Loc * spsps_loc(Parser parser);
  * @param parser		The parser.
  * @return				The next character.
  */
-SPSPS_CHAR spsps_peek(Parser parser);
+utf32_char spsps_peek(Parser parser);
 
 /**
  * Peek ahead at the next few characters in the stream, and return them.  The
@@ -238,7 +257,7 @@ SPSPS_CHAR spsps_peek(Parser parser);
  * @param n				The number of characters to look ahead.
  * @return				The next characters.
  */
-SPSPS_CHAR * spsps_peek_n(Parser parser, size_t n);
+uint8_t * spsps_peek_n(Parser parser, size_t n);
 
 /**
  * Peek ahead and determine if the next characters in the stream are the given
@@ -248,7 +267,7 @@ SPSPS_CHAR * spsps_peek_n(Parser parser, size_t n);
  * @param next			The characters.
  * @return				True iff the stream contains the given string next.
  */
-bool spsps_peek_str(Parser parser, SPSPS_CHAR * next);
+bool spsps_peek_str(Parser parser, uint8_t * next);
 
 /**
  * Peek ahead at the next few characters and if they are a given string, then
@@ -257,6 +276,6 @@ bool spsps_peek_str(Parser parser, SPSPS_CHAR * next);
  * @param next 			The characters to check for.
  * @return 				False iff the stream was left unchanged.
  */
-bool spsps_peek_and_consume(Parser parser, char * next);
+bool spsps_peek_and_consume(Parser parser, uint8_t * next);
 
 #endif /* SPSPS_PARSER_H_ */

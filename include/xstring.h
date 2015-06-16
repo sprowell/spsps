@@ -225,7 +225,7 @@ size_t mstr_length(mstring value);
  * @param ch			The character to add.
  * @return				The new string.
  */
-xstring xstr_append(xstring value, spsps_char ch);
+xstring xstr_append(xstring value, utf32_char ch);
 
 /**
  * Append a character to the end of the string.  This modifies the
@@ -237,7 +237,7 @@ xstring xstr_append(xstring value, spsps_char ch);
  * @param ch			The character to add.
  * @return				The string.
  */
-mstring mstr_append(mstring value, spsps_char ch);
+mstring mstr_append(mstring value, utf32_char ch);
 
 /**
  * Append a character to the end of the string.  A new string is
@@ -249,7 +249,7 @@ mstring mstr_append(mstring value, spsps_char ch);
  * @param ch			The character to add.
  * @return				The new string.
  */
-xstring xstr_append_f(xstring value, spsps_char ch);
+xstring xstr_append_f(xstring value, utf32_char ch);
 
 /**
  * Append a C string to the end of the given xstring.  The
@@ -260,7 +260,7 @@ xstring xstr_append_f(xstring value, spsps_char ch);
  * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
-xstring xstr_append_cstr(xstring value, char * cstr);
+xstring xstr_append_cstr(xstring value, utf8string cstr);
 
 /**
  * Append a C string to the end of the given xstring.  The
@@ -272,7 +272,7 @@ xstring xstr_append_cstr(xstring value, char * cstr);
  * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
-xstring xstr_append_cstr_f(xstring value, char * cstr);
+xstring xstr_append_cstr_f(xstring value, utf8string cstr);
 
 /**
  * Append a C string to the end of the given mstring.  The
@@ -284,7 +284,7 @@ xstring xstr_append_cstr_f(xstring value, char * cstr);
  * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
-mstring mstr_append_cstr(mstring value, char * cstr);
+mstring mstr_append_cstr(mstring value, utf8string cstr);
 
 /**
  * Append a C string to the end of the given mstring.  The
@@ -297,7 +297,7 @@ mstring mstr_append_cstr(mstring value, char * cstr);
  * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
-mstring mstr_append_cstr_f(mstring value, char * cstr);
+mstring mstr_append_cstr_f(mstring value, utf8string cstr);
 
 /**
  * Concatenate two strings.  The second string is appended to the
@@ -364,7 +364,7 @@ int mstr_strcmp(mstring lhs, mstring rhs);
  * @param value			The string.
  * @return				The null-terminated array of chars.
  */
-char * xstr_cstr(xstring value);
+utf8string xstr_cstr(xstring value);
 
 /**
  * Convert a string into a C null-terminated character array and
@@ -373,7 +373,7 @@ char * xstr_cstr(xstring value);
  * @param value			The string.
  * @return				The null-terminated array of chars.
  */
-char * xstr_cstr_f(xstring value);
+utf8string xstr_cstr_f(xstring value);
 
 /**
  * Convert a string into a C null-terminated character array and
@@ -382,7 +382,7 @@ char * xstr_cstr_f(xstring value);
  * @param value			The string.
  * @return				The null-terminated array of chars.
  */
-char * mstr_cstr(mstring value);
+utf8string mstr_cstr(mstring value);
 
 /**
  * Convert a string into a C null-terminated character array and
@@ -391,7 +391,7 @@ char * mstr_cstr(mstring value);
  * @param value			The string.
  * @return				The null-terminated array of chars.
  */
-char * mstr_cstr_f(mstring value);
+utf8string mstr_cstr_f(mstring value);
 
 /**
  * Decode the internal UTF-8 representation of the string into a
@@ -401,7 +401,7 @@ char * mstr_cstr_f(mstring value);
  * 					This is ignored if it is NULL.
  * @return			The null-terminated sequence of code points.
  */
-spsps_char * xstr_decode(xstring value, size_t * length);
+utf32string xstr_decode(xstring value, size_t * length);
 
 /**
  * Decode the internal UTF-8 representation of the string into a
@@ -411,7 +411,7 @@ spsps_char * xstr_decode(xstring value, size_t * length);
  * 					This is ignored if it is NULL.
  * @return			The null-terminated sequence of code points.
  */
-spsps_char * mstr_decode(mstring value, size_t * length);
+utf32string mstr_decode(mstring value, size_t * length);
 
 /**
  * Decode the internal UTF-8 representation of the string into a
@@ -422,7 +422,7 @@ spsps_char * mstr_decode(mstring value, size_t * length);
  * 					This is ignored if it is NULL.
  * @return			The null-terminated sequence of code points.
  */
-spsps_char * xstr_decode_f(xstring value, size_t * length);
+utf32string xstr_decode_f(xstring value, size_t * length);
 
 /**
  * Decode the internal UTF-8 representation of the string into a
@@ -433,7 +433,7 @@ spsps_char * xstr_decode_f(xstring value, size_t * length);
  * 					This is ignored if it is NULL.
  * @return			The null-terminated sequence of code points.
  */
-spsps_char * mstr_decode_f(mstring value, size_t * length);
+utf32_string mstr_decode_f(mstring value, size_t * length);
 
 /**
  * Encode the sequence of Unicode code points into a string.
@@ -443,7 +443,7 @@ spsps_char * mstr_decode_f(mstring value, size_t * length);
  * @param length	The length of the provided sequence.
  * @return			The string.
  */
-xstring xstr_encode(spsps_char * value, size_t length);
+xstring xstr_encode(utf32_string value, size_t length);
 
 /**
  * Encode the sequence of Unicode code points into a string.
@@ -453,18 +453,7 @@ xstring xstr_encode(spsps_char * value, size_t length);
  * @param length	The length of the provided sequence.
  * @return			The string.
  */
-mstring mstr_encode(spsps_char * value, size_t length);
-
-/**
- * Encode the sequence of Unicode code points into a string.
- * The input sequence is explicitly freed.
- * @param value		The sequence of code points.  If this is NULL,
- * 					it is treated as the empty sequence, and length
- * 					is ignored.
- * @param length	The length of the provided sequence.
- * @return			The string.
- */
-xstring xstr_encode_f(spsps_char * value, size_t length);
+mstring mstr_encode(utf32_string value, size_t length);
 
 /**
  * Encode the sequence of Unicode code points into a string.
@@ -475,6 +464,17 @@ xstring xstr_encode_f(spsps_char * value, size_t length);
  * @param length	The length of the provided sequence.
  * @return			The string.
  */
-mstring mstr_encode_f(spsps_char * value, size_t length);
+xstring xstr_encode_f(utf32_string value, size_t length);
+
+/**
+ * Encode the sequence of Unicode code points into a string.
+ * The input sequence is explicitly freed.
+ * @param value		The sequence of code points.  If this is NULL,
+ * 					it is treated as the empty sequence, and length
+ * 					is ignored.
+ * @param length	The length of the provided sequence.
+ * @return			The string.
+ */
+mstring mstr_encode_f(utf32_string value, size_t length);
 
 #endif /* SPSPS_XSTRING_H_ */

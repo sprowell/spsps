@@ -37,16 +37,66 @@
  * @endverbatim
  */
 
-#include <_types/_uint32_t.h>
-#include <_types/_uint8_t.h>
+#include <stdint.h>
 #include <stddef.h>
 
+/// The 32-bit byte order mark (BOM) for this platform.
+#define UTF32_BOM (0x0000FEFF)
+
 /// The character type for a single character.
-typedef uint32_t spsps_char;
+typedef uint32_t utf32_char;
+
+/// The marker type of a UTF-8 encoded string.
+typedef uint8_t * utf8string;
+
+/// The marker type of a UTF-32 encoded string.
+typedef utf32_char * utf32string;
+
+/**
+ * Determine if the provided code point is an ISO control character.  These are
+ * the code points in the closed intervals [U+0000 - U+001F] and
+ * [U+007F - U+009F].
+ * @param code_point	The code point to test.
+ * @return 				True if the code point is an ISO control character, and
+ * 						false otherwise.
+ */
+bool is_ISO_control(utf32_char code_point);
+
+/**
+ * Determine if the provided code point is a whitespace character, as defined
+ * by having the Unicode [gc=Zs] attribute.  Table 6-2 in version 7 of the
+ * Unicode standard defines the following space characters, all in the BMP
+ * range.
+ *
+ *   - U+0020 space
+ *   - U+00A0 no-break space
+ *   - U+1680 ogham space mark
+ *   - U+180E mongolian vowel separator
+ *   - U+2000 en quad
+ *   - U+2001 em quad
+ *   - U+2002 en space
+ *   - U+2003 em space
+ *   - U+2004 three-per-em space
+ *   - U+2005 four-per-em space
+ *   - U+2006 six-per-em space
+ *   - U+2007 figure space
+ *   - U+2008 punctuation space
+ *   - U+2009 thin space
+ *   - U+200A hair space
+ *   - U+202F narrow no-break space
+ *   - U+205F medium mathematical spacl
+ *   - U+3000 ideographic space
+ *
+ * Note that this ignores the zero width space (U+200B).
+ */
+bool is_whitespace(utf32_char code_point);
 
 /**
  * Given a single character, encode it into the sequence of UTF-8 bytes.
+ * The input character is UTF-32.
+ * 
  * This is based on RFC 3629. (http://tools.ietf.org/html/rfc3629)
+ *
  * @param code_point    The input character.
  * @param used          The number of bytes for the encoded character.
  *                      This is zero iff the input code point is invalid.
@@ -55,20 +105,47 @@ typedef uint32_t spsps_char;
  *                      never NULL, and the caller is responsible for
  *                      deallocating it.
  */
-uint8_t * utf8encode(spsps_char input, size_t * used);
+uint8_t * utf8encode(utf32_char code_point, size_t * used);
+
+/**
+ * Given a single Unicode code point (as UTF-32) determine how many bytes
+ * are required to encode that code point as UTF-8.  This is the same as
+ * `used` from `utf8encode`.
+ *
+ * @param code_point 	The input character.
+ * @return 				The number of bytes needed to encode the code point.
+ */
+size_t utf8encode_size(utf32_char code_point);
 
 /**
  * Given a sequence of bytes that may or may not be null-terminated,
  * try to convert that sequence of bytes into a single Unicode character.
  * The provided byte sequence is assumed to be at least six bytes in
- * length, so make sure that it is allocated in that manner.
+ * length, so make sure that it is allocated in that manner.  The return
+ * value is UTF-32.
+ *
  * This is based on RFC 3629. (http://tools.ietf.org/html/rfc3629)
+ *
  * @param input     The input bytes.  If NULL on input, nul (0) is returned.
  * @param used      Number of bytes consumed by this action.  This is
  *                  ignored if it is NULL on input.
  * @return          The decoded character.  This will be nul (0) if the
- *                  input byte sequence is not a valid UTF-8 character.
+ *                  input byte sequence is empty, and 0xDChh if the next
+ *					byte hh is invalid.
  */
-spsps_char utf8decode(uint8_t * input, size_t * used);
+utf32_char utf8decode(uint8_t * input, size_t * used);
+
+/**
+ * Given a sequence of bytes determine how many of those bytes make up the
+ * next UTF-8 encoded Unicode code point.  That is, determine how many bytes
+ * would be consumed to generate the next code point.  This is used to count
+ * code points in a byte sequence.  This is exactly the same as the `used`
+ * parameter from `utf8decode`.
+ *
+ * @param input 	The bytes.
+ * @return 			The number of bytes that make up the next UTF-8 character
+ * 					(or 1 if the next character is invalid).
+ */
+size_t utf8decode_size(uint8_t * input);
 
 #endif //SPSPS_UTF8_H_

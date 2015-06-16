@@ -37,38 +37,59 @@
 #include <stdlib.h>
 #include "utf8.h"
 
+bool
+is_ISO_control(utf32_char code_point) {
+    return
+        (0x0000 <= ch <= 0x001F) ||
+        (0x007F <= ch <= 0x009F);
+}
+
+bool
+is_whitespace(utf32_char code_point) {
+    return
+        ch == 0x0020 ||
+        ch == 0x00A0 ||
+        ch == 0x1680 ||
+        ch == 0x180E ||
+        (ch >= 0x2000 && ch <= 0x200A) ||
+        ch == 0x202F ||
+        ch == 0x205F ||
+        ch == 0x3000;
+}
+
+/*
+ * These functions rely on the following table taken from RFC 3629.
+ *
+ * Char. number range  |        UTF-8 octet sequence
+ *    (hexadecimal)    |              (binary)
+ * --------------------+---------------------------------------------
+ * 0000 0000-0000 007F | 0xxxxxxx
+ * 0000 0080-0000 07FF | 110xxxxx 10xxxxxx
+ * 0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
+ * 0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+ *
+ * Interpreting this gives:
+ * < 0x80 --> The byte itself.
+ * < 0x800 --> 11 bits, broken into:
+ *   0xC0 | (code_point >> 6),
+ *   0x80 | code_point & 0x3F
+ * < 0x1000 --> 16 bits, broken into:
+ *   0xE0 | (code_point >> 12),
+ *   0x80 | (code_point >> 6) & 0x3F,
+ *   0x80 | code_point & 0x3F
+ * < 0x110000 --> 21 bits, broken into:
+ *   0xF0 | (code_point >> 18),
+ *   0x80 | (code_point >> 12) & 0x3F,
+ *   0x80 | (code_point >> 6) & 0x3F,
+ *   0x80 | code_point & 0x3F
+ * >= 0x11000 --> Invalid
+ */
+
+
 uint8_t *
-utf8encode(spsps_char code_point, size_t * used) {
+utf8encode(utf32_char code_point, size_t * used) {
     size_t scratch = 0;
     if (used == NULL) used = &scratch;
-
-    /*
-     * This function relies on the following table taken from RFC 3629.
-     *
-     * Char. number range  |        UTF-8 octet sequence
-     *    (hexadecimal)    |              (binary)
-     * --------------------+---------------------------------------------
-     * 0000 0000-0000 007F | 0xxxxxxx
-     * 0000 0080-0000 07FF | 110xxxxx 10xxxxxx
-     * 0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
-     * 0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-     *
-     * Interpreting this gives:
-     * < 0x80 --> The byte itself.
-     * < 0x800 --> 11 bits, broken into:
-     *   0xC0 | (code_point >> 6),
-     *   0x80 | code_point & 0x3F
-     * < 0x1000 --> 16 bits, broken into:
-     *   0xE0 | (code_point >> 12),
-     *   0x80 | (code_point >> 6) & 0x3F,
-     *   0x80 | code_point & 0x3F
-     * < 0x110000 --> 21 bits, broken into:
-     *   0xF0 | (code_point >> 18),
-     *   0x80 | (code_point >> 12) & 0x3F,
-     *   0x80 | (code_point >> 6) & 0x3F,
-     *   0x80 | code_point & 0x3F
-     * >= 0x11000 --> Invalid
-     */
 
     // Using calloc prevents the need to zero-terminate the array.
     uint8_t * value = (uint8_t *) calloc(7, 1);
@@ -101,57 +122,61 @@ utf8encode(spsps_char code_point, size_t * used) {
     return value;
 }
 
+size_t
+utf8encode_size(utf32_char code_point) {
+    // Using calloc prevents the need to zero-terminate the array.
+    uint8_t * value = (uint8_t *) calloc(7, 1);
+    if (code_point < 0x80) {
+        return 1;
+    } else if (code_point < 0x800) {
+        return 2;
+    } else if (code_point <= 0x1000) {
+        return 3;
+    } else if (code_point <= 0x110000) {
+        return 4;
+    } else {
+        // Invalid encoding.
+        return 0;
+    }
+}
+
 /// The value to use when we find a bad encoding.  This allows the bad
 /// byte to be returned so the caller can (potentially) see what is going
 /// on.
 /// @param m_byte       The bad byte 0xHH.
 /// @return             The encoded bad byte as 0xDCHH.
 #define BADUTF8(m_byte) \
-    ((spsps_char) (0xDC00 | m_byte))
+    ((utf32_char) (0xDC00 | m_byte))
 
-spsps_char
+utf32_char
 utf8decode(uint8_t * input, size_t * used) {
     size_t scratch = 0;
     if (used == NULL) used = &scratch;
     if (input == NULL) {
         *used = 0;
-        return (spsps_char) 0;
+        return (utf32_char) 0;
     }
 
     // The first byte reveals the number of bytes in the complete code
     // point representation.
-
-    /*
-     * This function relies on the following table from RFC 3629.
-     *
-     * Char. number range  |        UTF-8 octet sequence
-     *    (hexadecimal)    |              (binary)
-     * --------------------+---------------------------------------------
-     * 0000 0000-0000 007F | 0xxxxxxx
-     * 0000 0080-0000 07FF | 110xxxxx 10xxxxxx
-     * 0000 0800-0000 FFFF | 1110xxxx 10xxxxxx 10xxxxxx
-     * 0001 0000-0010 FFFF | 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-     *
-     */
-
     if (input[0] < 0x80) {
         // Single byte code point.
         *used = 1;
-        return (spsps_char) input[0];
+        return (utf32_char) input[0];
     }
     if (input[0] < 0xC0) {
         // Invalid code point; return the badly encoded byte.  Could be an
         // overlong sequence.  Don't care; just return the bad byte.
         *used = 1;
-        return (spsps_char) 0xDC00 | input[0];
+        return (utf32_char) 0xDC00 | input[0];
     }
     if (input[0] < 0xE0) {
         // Two-byte sequence.
         *used = 1;
         if (input[1] & 0xC0 != 0x80) return BADUTF8(input[1]);
         ++(*used);
-        return ((spsps_char) input[0] & 0x1F) << 6 |
-                ((spsps_char) input[1] & 0x3F);
+        return ((utf32_char) input[0] & 0x1F) << 6 |
+                ((utf32_char) input[1] & 0x3F);
     }
     if (input[0] < 0xF0) {
         // Three-byte sequence.
@@ -160,9 +185,9 @@ utf8decode(uint8_t * input, size_t * used) {
         ++(*used);
         if (input[2] & 0xC0 != 0x80) return BADUTF8(input[2]);
         ++(*used);
-        return ((spsps_char) input[0] & 0x07) << 12 |
-                ((spsps_char) input[1] & 0x3F) << 6 |
-                ((spsps_char) input[2] & 0x3F);
+        return ((utf32_char) input[0] & 0x07) << 12 |
+                ((utf32_char) input[1] & 0x3F) << 6 |
+                ((utf32_char) input[2] & 0x3F);
     }
     if (input[0] < 0x110000) {
         // Four-byte sequence.
@@ -173,11 +198,49 @@ utf8decode(uint8_t * input, size_t * used) {
         ++(*used);
         if (input[3] & 0xC0 != 0x80) return BADUTF8(input[3]);
         ++(*used);
-        return ((spsps_char) input[0] & 0x07) << 16 |
-               ((spsps_char) input[1] & 0x3F) << 12 |
-               ((spsps_char) input[2] & 0x3F) << 6 |
-               ((spsps_char) input[3] & 0x3F);
+        return ((utf32_char) input[0] & 0x07) << 16 |
+               ((utf32_char) input[1] & 0x3F) << 12 |
+               ((utf32_char) input[2] & 0x3F) << 6 |
+               ((utf32_char) input[3] & 0x3F);
     }
     // Invalid byte.
     return BADUTF8(input[0]);
+}
+
+size_t
+utf8decode_size(uint8_t * input) {
+    if (input == NULL) {
+        return 0;
+    }
+
+    // The first byte reveals the number of bytes in the complete code
+    // point representation.
+    if (input[0] < 0x80) {
+        // Single byte code point.
+        return 1;
+    }
+    if (input[0] < 0xC0) {
+        // Invalid code point; return the badly encoded byte.  Could be an
+        // overlong sequence.  Don't care; just return the bad byte.
+        return 1;
+    }
+    if (input[0] < 0xE0) {
+        // Two-byte sequence.
+        if (input[1] & 0xC0 != 0x80) return 1 else return 2;
+    }
+    if (input[0] < 0xF0) {
+        // Three-byte sequence.
+        if (input[1] & 0xC0 != 0x80) return 1;
+        if (input[2] & 0xC0 != 0x80) return 2;
+        return 3;
+    }
+    if (input[0] < 0x110000) {
+        // Four-byte sequence.
+        if (input[1] & 0xC0 != 0x80) return 1;
+        if (input[2] & 0xC0 != 0x80) return 2;
+        if (input[3] & 0xC0 != 0x80) return 3;
+        return 4;
+    }
+    // Invalid byte.
+    return 1;
 }

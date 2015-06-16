@@ -76,13 +76,24 @@ struct spsps_parser_ {
 // Helper functions.
 //======================================================================
 
-SPSPS_CHAR chbuf[30]; // U+002e (.) and U+0000002e.
-char * spsps_printchar(SPSPS_CHAR xch) {
-	unsigned SPSPS_CHAR ch = (unsigned SPSPS_CHAR) xch;
-	if (isprint(ch)) {
-		sprintf(chbuf, "U+%04x (%1c)", ch, ch);
+// Reserve plenty of space for the string and the terminating nul.  Note
+// that we reserve a larger chunk than is necessary, since Unicode characters
+// are only valid up to six digits at present.  However, we will produce
+// (potentially) 8 character results for invalid code points.
+char chbuf[64]; // U+12345678 (c)
+char * spsps_printchar(utf32_char ch) {
+	// Check to see if this is an ISO control character and, if so, suppress
+	// printing the character.
+	if (is_ISO_control(ch)) {
+		// This is an ISO control character.
+		sprintf(chbuf, "U+%04X", ch);
+	} else if (0x10000 > ch) {
+		// This is in the BMP range, so use four digits.
+		sprintf(chbuf, "U+%04X (%1lc", (wchar_t) ch);
 	} else {
-		sprintf(chbuf, "U+%04x", ch);
+		// This is outside the four digit range, so use any digits and suppress
+		// the glyph (if any) for now.
+		sprintf(chbuf, "U+%X");
 	}
 	return chbuf;
 }
@@ -90,7 +101,7 @@ char * spsps_printchar(SPSPS_CHAR xch) {
 void
 spsps_read_other_(Parser parser) {
 	// Allocation: Nothing is allocated or deallocated by this method.
-	size_t count = fread(parser->blocks[parser->block^1], sizeof(SPSPS_CHAR),
+	size_t count = fread(parser->blocks[parser->block^1], 1,
 		SPSPS_LOOK, parser->stream);
 	if (count < SPSPS_LOOK) {
 		if (sizeof(SPSPS_CHAR) == 1) {
