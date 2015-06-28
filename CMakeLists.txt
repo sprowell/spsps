@@ -1,29 +1,40 @@
-# Build Elision.
+# Build SPSPS.
 #
 
 # Verify the version of CMake required.
 cmake_minimum_required( VERSION 2.8 )
 
-# Define the project and the current version numbers.
+# Define the project and the current version numbers.  This project
+# uses Semantic Versioning 2.0.0 (see http://semver.org/spec/v2.0.0.html).
 project( spsps )
 SET( SPSPS_MAJOR 0 )
 SET( SPSPS_MINOR 0 )
-SET( SPSPS_VERSION ${SPSPS_MAJOR}.${SPSPS_MINOR} )
+SET( SPSPS_PATCH 0 )
+
+# Create some strings.
+SET( SPSPS_VERSION ${SPSPS_MAJOR}.${SPSPS_MINOR}.${SPSPS_PATCH} )
 SET( SPSPS_DIST_NAME "spsps-${SPSPS_VERSION}" )
+
+# Some CMake configuration.
+# Read about RPATH here:
+# http://www.cmake.org/Wiki/CMake_RPATH_handling
+# Read about related policy MP0042 here:
+# http://www.cmake.org/cmake/help/v3.0/policy/CMP0042.html
 SET( MACOSX_RPATH 1 )
 if (POLICY CMP0042)
     cmake_policy(SET CMP0042 NEW)
 endif()
 
-# Locate valgrind.
+# Locate valgrind.  We use valgrind to check for memory leaks.
 find_program(CTEST_MEMORYCHECK_COMMAND NAMES valgrind)
 
 # Specify the list of source files to use for the core library here.
 FILE(GLOB_RECURSE lib_sources RELATIVE ${CMAKE_HOME_DIRECTORY} c/*.c)
 
 # Find include files.
-include_directories( AFTER SYSTEM include c )
+include_directories( AFTER SYSTEM include )
 
+# Turn on all warnings and errors, and use C++11 extensions.
 if( CMAKE_COMPILER_IS_GNUCC )
      SET ( CMAKE_C_FLAGS "-D_BSD_SOURCE -std=c11 -pedantic -Wall" )
 endif( CMAKE_COMPILER_IS_GNUCC )
@@ -32,9 +43,6 @@ endif( CMAKE_COMPILER_IS_GNUCC )
 if( NOT CMAKE_BUILD_TYPE )
     SET( CMAKE_BUILD_TYPE "Release" )
 endif( NOT CMAKE_BUILD_TYPE )
-
-# Modify the include path so we can find our own files.
-include_directories( AFTER SYSTEM src )
 
 # Build the core library.
 add_library( spsps_shared SHARED ${lib_sources} )
