@@ -40,21 +40,24 @@
 bool
 is_ISO_control(utf32_char code_point) {
     return
-        (0x0000 <= ch <= 0x001F) ||
-        (0x007F <= ch <= 0x009F);
+        (code_point <= 0x001F) ||
+        (0x007F <= code_point && code_point <= 0x009F);
 }
 
 bool
 is_whitespace(utf32_char code_point) {
     return
-        ch == 0x0020 ||
-        ch == 0x00A0 ||
-        ch == 0x1680 ||
-        ch == 0x180E ||
-        (ch >= 0x2000 && ch <= 0x200A) ||
-        ch == 0x202F ||
-        ch == 0x205F ||
-        ch == 0x3000;
+        (code_point >= 0x0009 && code_point <=0x000D) ||
+        code_point == 0x0020 ||
+        code_point == 0x0085 ||
+        code_point == 0x00A0 ||
+        code_point == 0x1680 ||
+        (code_point >= 0x2000 && code_point <= 0x200A) ||
+        code_point == 0x2028 ||
+        code_point == 0x2029 ||
+        code_point == 0x202F ||
+        code_point == 0x205F ||
+        code_point == 0x3000;
 }
 
 /*
@@ -102,18 +105,18 @@ utf8encode(utf32_char code_point, size_t * used) {
         value[0] = (uint8_t) ((code_point >> 6) + 0xc0);
         value[1] = (uint8_t) ((code_point & 0x3f) + 0x80);
         *used = 2;
-    } else if (code_point <= 0x1000) {
+    } else if (code_point < 0x1000) {
         // This is a three-byte encoding, starting with 0b111.
         value[0] = (uint8_t) ((code_point >> 12) + 0xe0);
         value[1] = (uint8_t) (((code_point >> 6) & 0x3f) + 0x80);
         value[2] = (uint8_t) ((code_point & 0x3f) + 0x80);
         *used = 3;
-    } else if (code_point <= 0x110000) {
+    } else if (code_point < 0x110000) {
         // This is a four-byte encoding, starting with 0b1111.
         value[0] = (uint8_t) ((code_point >> 18) + 0xf0);
-        value[0] = (uint8_t) (((code_point >> 12) & 0x3f) + 0x80);
-        value[0] = (uint8_t) (((code_point >> 6) & 0x3f) + 0x80);
-        value[0] = (uint8_t) ((code_point & 0x3f) + 0x80);
+        value[1] = (uint8_t) (((code_point >> 12) & 0x3f) + 0x80);
+        value[2] = (uint8_t) (((code_point >> 6) & 0x3f) + 0x80);
+        value[3] = (uint8_t) ((code_point & 0x3f) + 0x80);
         *used = 4;
     } else {
         // This is an invalid code point.
@@ -130,9 +133,9 @@ utf8encode_size(utf32_char code_point) {
         return 1;
     } else if (code_point < 0x800) {
         return 2;
-    } else if (code_point <= 0x1000) {
+    } else if (code_point < 0x1000) {
         return 3;
-    } else if (code_point <= 0x110000) {
+    } else if (code_point < 0x110000) {
         return 4;
     } else {
         // Invalid encoding.
@@ -167,13 +170,13 @@ utf8decode(uint8_t * input, size_t * used) {
     if (input[0] < 0xC0) {
         // Invalid code point; return the badly encoded byte.  Could be an
         // overlong sequence.  Don't care; just return the bad byte.
-        *used = 1;
+        *used = 0; // Required by the method definition.
         return (utf32_char) 0xDC00 | input[0];
     }
     if (input[0] < 0xE0) {
         // Two-byte sequence.
         *used = 1;
-        if (input[1] & 0xC0 != 0x80) return BADUTF8(input[1]);
+        if ((input[1] & 0xC0) != 0x80) return BADUTF8(input[1]);
         ++(*used);
         return ((utf32_char) input[0] & 0x1F) << 6 |
                 ((utf32_char) input[1] & 0x3F);
@@ -181,24 +184,24 @@ utf8decode(uint8_t * input, size_t * used) {
     if (input[0] < 0xF0) {
         // Three-byte sequence.
         *used = 1;
-        if (input[1] & 0xC0 != 0x80) return BADUTF8(input[1]);
+        if ((input[1] & 0xC0) != 0x80) return BADUTF8(input[1]);
         ++(*used);
-        if (input[2] & 0xC0 != 0x80) return BADUTF8(input[2]);
+        if ((input[2] & 0xC0) != 0x80) return BADUTF8(input[2]);
         ++(*used);
         return ((utf32_char) input[0] & 0x07) << 12 |
                 ((utf32_char) input[1] & 0x3F) << 6 |
                 ((utf32_char) input[2] & 0x3F);
     }
-    if (input[0] < 0x110000) {
+    if (input[0] < 0xF8) {
         // Four-byte sequence.
         *used = 1;
-        if (input[1] & 0xC0 != 0x80) return BADUTF8(input[1]);
+        if ((input[1] & 0xC0) != 0x80) return BADUTF8(input[1]);
         ++(*used);
-        if (input[2] & 0xC0 != 0x80) return BADUTF8(input[2]);
+        if ((input[2] & 0xC0) != 0x80) return BADUTF8(input[2]);
         ++(*used);
-        if (input[3] & 0xC0 != 0x80) return BADUTF8(input[3]);
+        if ((input[3] & 0xC0) != 0x80) return BADUTF8(input[3]);
         ++(*used);
-        return ((utf32_char) input[0] & 0x07) << 16 |
+        return ((utf32_char) input[0] & 0x07) << 18 |
                ((utf32_char) input[1] & 0x3F) << 12 |
                ((utf32_char) input[2] & 0x3F) << 6 |
                ((utf32_char) input[3] & 0x3F);
@@ -226,19 +229,19 @@ utf8decode_size(uint8_t * input) {
     }
     if (input[0] < 0xE0) {
         // Two-byte sequence.
-        if (input[1] & 0xC0 != 0x80) return 1 else return 2;
+        if ((input[1] & 0xC0) != 0x80) return 1; else return 2;
     }
     if (input[0] < 0xF0) {
         // Three-byte sequence.
-        if (input[1] & 0xC0 != 0x80) return 1;
-        if (input[2] & 0xC0 != 0x80) return 2;
+        if ((input[1] & 0xC0) != 0x80) return 1;
+        if ((input[2] & 0xC0) != 0x80) return 2;
         return 3;
     }
-    if (input[0] < 0x110000) {
+    if (input[0] < 0xF8) {
         // Four-byte sequence.
-        if (input[1] & 0xC0 != 0x80) return 1;
-        if (input[2] & 0xC0 != 0x80) return 2;
-        if (input[3] & 0xC0 != 0x80) return 3;
+        if ((input[1] & 0xC0) != 0x80) return 1;
+        if ((input[2] & 0xC0) != 0x80) return 2;
+        if ((input[3] & 0xC0) != 0x80) return 3;
         return 4;
     }
     // Invalid byte.

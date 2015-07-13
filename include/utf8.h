@@ -3,7 +3,8 @@
 
 /**
  * @file
- * Support for working with UTF-8.
+ * Support for working with UTF-8.  This is based on version 7.0.0 of the
+ * Unicode standard.  http://www.unicode.org/versions/Unicode7.0.0/
  *
  * @verbatim
  * SPSPS
@@ -39,6 +40,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 /// The 32-bit byte order mark (BOM) for this platform.
 #define UTF32_BOM (0x0000FEFF)
@@ -47,15 +49,22 @@
 typedef uint32_t utf32_char;
 
 /// The marker type of a UTF-8 encoded string.
-typedef uint8_t * utf8string;
+typedef uint8_t * utf8_string;
 
 /// The marker type of a UTF-32 encoded string.
-typedef utf32_char * utf32string;
+typedef utf32_char * utf32_string;
 
 /**
  * Determine if the provided code point is an ISO control character.  These are
  * the code points in the closed intervals [U+0000 - U+001F] and
- * [U+007F - U+009F].
+ * [U+007F - U+009F].  Nothing above U+009F is considered an ISO control
+ * character.
+ *
+ * This is not the same definition as is used for the C standard library
+ * function iswcntrl.
+ *
+ * It is the same as Java's Character.isISOControl.
+ *
  * @param code_point	The code point to test.
  * @return 				True if the code point is an ISO control character, and
  * 						false otherwise.
@@ -63,15 +72,22 @@ typedef utf32_char * utf32string;
 bool is_ISO_control(utf32_char code_point);
 
 /**
- * Determine if the provided code point is a whitespace character, as defined
- * by having the Unicode [gc=Zs] attribute.  Table 6-2 in version 7 of the
- * Unicode standard defines the following space characters, all in the BMP
- * range.
+ * Determine if the provided code point is a whitespace character.
  *
+ * There are two references for this.  The first is Table 6-2 in version 7.0.0
+ * of the Unicode standard.  The second is the Unicode property list file
+ * PropList.txt that is part of the standard.  This method relies solely on
+ * the latter.
+ *
+ * The following are recognized as whitespace.
+ *   - U+0009 horizontal tabulation
+ *   - U+000A line feed
+ *   - U+000B vertical tabulation
+ *   - U+000C form feed
+ *   - U+000D carriage return
  *   - U+0020 space
  *   - U+00A0 no-break space
  *   - U+1680 ogham space mark
- *   - U+180E mongolian vowel separator
  *   - U+2000 en quad
  *   - U+2001 em quad
  *   - U+2002 en space
@@ -87,7 +103,15 @@ bool is_ISO_control(utf32_char code_point);
  *   - U+205F medium mathematical spacl
  *   - U+3000 ideographic space
  *
- * Note that this ignores the zero width space (U+200B).
+ * Note that this ignores the zero width space (U+200B).  U+180E is listed
+ * in table 6.2, but is not included in the property list, and is therefore
+ * not included here.
+ *
+ * The iswspace C library function does include the zero-length space.
+ *
+ * The Java isWhitespace method excludes non-breaking space characters
+ * (U+00A0, U+2007, U+202F) and includes record separators (U+001C, U+001D,
+ * U+001E, U+001F).
  */
 bool is_whitespace(utf32_char code_point);
 
