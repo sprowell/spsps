@@ -47,6 +47,12 @@ typedef struct xstring_ * xstring;
 /// Opaque type for a mutable string.
 typedef struct mstring_ * mstring;
 
+/// Opaque type for an xstring character iterator.
+typedef struct xstr_iter_ * xstr_iter;
+
+/// Opaque type for an mstring character iterator.
+typedef struct mstr_iter_ * mstr_iter;
+
 
 /**
  * A macro to print an xstring to the given stream.  The string is
@@ -135,7 +141,7 @@ void mstr_free(mstring value);
  * @param value			The null-terminated UTF-8 C string.
  * @return				The new immutable string.
  */
-xstring xstr_wrap(char * value);
+xstring xstr_wrap(utf8_string value);
 
 /**
  * Convert a C null-terminated string into an xstring.  The input
@@ -145,7 +151,7 @@ xstring xstr_wrap(char * value);
  * @param value			The null-terminated UTF-8 C string.
  * @return				The new immutable string.
  */
-xstring xstr_wrap_f(char * value);
+xstring xstr_wrap_f(utf8_string value);
 
 /**
  * Convert a C null-terminated string into an mstring.  The input
@@ -155,7 +161,7 @@ xstring xstr_wrap_f(char * value);
  * @param value			The null-terminated C string.
  * @return				The new mutable string.
  */
-mstring mstr_wrap(char * value);
+mstring mstr_wrap(utf8_string value);
 
 /**
  * Convert a C null-terminated string into an mstring.  The input
@@ -165,7 +171,7 @@ mstring mstr_wrap(char * value);
  * @param value			The null-terminated C string.
  * @return				The new mutable string.
  */
-mstring mstr_wrap_f(char * value);
+mstring mstr_wrap_f(utf8_string value);
 
 /**
  * Create a copy of the string.  The resulting copy is independent
@@ -260,7 +266,7 @@ xstring xstr_append_f(xstring value, utf32_char ch);
  * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
-xstring xstr_append_cstr(xstring value, utf8string cstr);
+xstring xstr_append_cstr(xstring value, utf8_string cstr);
 
 /**
  * Append a C string to the end of the given xstring.  The
@@ -272,7 +278,7 @@ xstring xstr_append_cstr(xstring value, utf8string cstr);
  * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
-xstring xstr_append_cstr_f(xstring value, utf8string cstr);
+xstring xstr_append_cstr_f(xstring value, utf8_string cstr);
 
 /**
  * Append a C string to the end of the given mstring.  The
@@ -284,7 +290,7 @@ xstring xstr_append_cstr_f(xstring value, utf8string cstr);
  * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
-mstring mstr_append_cstr(mstring value, utf8string cstr);
+mstring mstr_append_cstr(mstring value, utf8_string cstr);
 
 /**
  * Append a C string to the end of the given mstring.  The
@@ -297,7 +303,7 @@ mstring mstr_append_cstr(mstring value, utf8string cstr);
  * @param cstr			The string to append, assumed to be UTF-8.
  * @return				The input string, modified.
  */
-mstring mstr_append_cstr_f(mstring value, utf8string cstr);
+mstring mstr_append_cstr_f(mstring value, utf8_string cstr);
 
 /**
  * Concatenate two strings.  The second string is appended to the
@@ -364,7 +370,7 @@ int mstr_strcmp(mstring lhs, mstring rhs);
  * @param value			The string.
  * @return				The null-terminated array of chars.
  */
-utf8string xstr_cstr(xstring value);
+utf8_string xstr_cstr(xstring value);
 
 /**
  * Convert a string into a C null-terminated character array and
@@ -373,7 +379,7 @@ utf8string xstr_cstr(xstring value);
  * @param value			The string.
  * @return				The null-terminated array of chars.
  */
-utf8string xstr_cstr_f(xstring value);
+utf8_string xstr_cstr_f(xstring value);
 
 /**
  * Convert a string into a C null-terminated character array and
@@ -382,7 +388,7 @@ utf8string xstr_cstr_f(xstring value);
  * @param value			The string.
  * @return				The null-terminated array of chars.
  */
-utf8string mstr_cstr(mstring value);
+utf8_string mstr_cstr(mstring value);
 
 /**
  * Convert a string into a C null-terminated character array and
@@ -391,7 +397,7 @@ utf8string mstr_cstr(mstring value);
  * @param value			The string.
  * @return				The null-terminated array of chars.
  */
-utf8string mstr_cstr_f(mstring value);
+utf8_string mstr_cstr_f(mstring value);
 
 /**
  * Decode the internal UTF-8 representation of the string into a
@@ -401,7 +407,7 @@ utf8string mstr_cstr_f(mstring value);
  * 					This is ignored if it is NULL.
  * @return			The null-terminated sequence of code points.
  */
-utf32string xstr_decode(xstring value, size_t * length);
+utf32_string xstr_decode(xstring value, size_t * length);
 
 /**
  * Decode the internal UTF-8 representation of the string into a
@@ -411,7 +417,7 @@ utf32string xstr_decode(xstring value, size_t * length);
  * 					This is ignored if it is NULL.
  * @return			The null-terminated sequence of code points.
  */
-utf32string mstr_decode(mstring value, size_t * length);
+utf32_string mstr_decode(mstring value, size_t * length);
 
 /**
  * Decode the internal UTF-8 representation of the string into a
@@ -422,7 +428,7 @@ utf32string mstr_decode(mstring value, size_t * length);
  * 					This is ignored if it is NULL.
  * @return			The null-terminated sequence of code points.
  */
-utf32string xstr_decode_f(xstring value, size_t * length);
+utf32_string xstr_decode_f(xstring value, size_t * length);
 
 /**
  * Decode the internal UTF-8 representation of the string into a
@@ -476,5 +482,51 @@ xstring xstr_encode_f(utf32_string value, size_t length);
  * @return			The string.
  */
 mstring mstr_encode_f(utf32_string value, size_t length);
+
+/**
+ * Obtain an iterator over the code points in a string.  When finished with
+ * the iterator, it must be freed.
+ * @param xstr 		The string.
+ * @return 			The iterator.
+ */
+xstr_iter xstr_iterator(xstring xstr);
+
+/**
+ * Obtain an iterator over the code points in a string.  When finished with
+ * the iterator, it must be freed.
+ * @param mstr 		The string.
+ * @return 			The iterator.
+ */
+mstr_iter mstr_iterator(mstring mstr);
+
+/**
+ * Determine if the string iterator has further code points.
+ * @param iter 		The string iterator.
+ * @return 			True if there are more code points; false otherwise.
+ */
+bool xstr_has_next(xstr_iter iter);
+
+/**
+ * Determine if the string iterator has further code points.
+ * @param iter 		The string iterator.
+ * @return 			True if there are more code points; false otherwise.
+ */
+bool mstr_has_next(mstr_iter iter);
+
+/**
+ * Obtain the next code point from the iterator.
+ * @param iter 		The string iterator.
+ * @return 			The next code point.  Return null if there are no further
+ * 					code points.
+ */
+utf32_char xstr_next(xstr_iter iter);
+
+/**
+ * Obtain the next code point from the iterator.
+ * @param iter 		The string iterator.
+ * @return 			The next code point.  Return null if there are no further
+ * 					code points.
+ */
+utf32_char mstr_next(mstr_iter iter);
 
 #endif /* SPSPS_XSTRING_H_ */

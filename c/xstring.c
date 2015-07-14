@@ -40,18 +40,20 @@
 #include <stdio.h>
 #include <ctype.h>
 
-// Internal storage is in bytes, so we use arrays of uint8_t.
-typedef uint8_t xch;
+// Internal storage is in bytes, so we use arrays of chars.  If we use
+// either uint8_t or int8_t we run into sign difficulties.
+typedef char xch;
 
 /* Some notes.
  *
  * Never allocate any space for an xstring unless it is going to
  * contains something.  That is, an empty xstring is equivalent to
- * NULL.
+ * NULL.  The same (mostly) goes for mstring, but it may make sense
+ * to allocate space there, since mstrings are mutable.
  */
-
 struct xstring_ {
 	/* How this works.
+	 *
 	 * The cstr points to a character array of xchs.  It can be
 	 * NULL, which should be treated the same as the empty string.
 	 * The length is the length of the string.  Storing the length
@@ -66,6 +68,7 @@ struct xstring_ {
 
 struct mstring_ {
 	/* How this works.
+	 *
 	 * Mutable strings always allocate memory, even when the string
 	 * is empty.  This allows them to be quickly added to, which is
 	 * the primary use case for a mutable string.  The cstr points
@@ -77,7 +80,7 @@ struct mstring_ {
 	 * via next (a linked list).  The length is the total length of
 	 * the string from this block forward along the chain.
 	 *
-	 * If is assumed throughout this library that if length is not zero
+	 * It is assumed throughout this library that if length is not zero
 	 * then cstr is not NULL.  Pay attention to this invariant!
 	 */
 	xch * cstr;
@@ -197,12 +200,12 @@ mstr_free(mstring value) {
 
 xstring
 xstr_wrap(utf8_string value) {
-	size_t len = (value == NULL) ? 0 : strlen(value);
+	size_t len = (value == NULL) ? 0 : strlen((char *) value);
 	// If the length is zero, don't allocate anything.
 	if (len == 0) return NULL;
 	xstring str = xstr_new();
 	str->length = len;
-	str->cstr = (xch *) malloc(len);
+	str->cstr = (utf8_string) malloc(len);
 	for (size_t index = 0; index < len; ++index) {
 		str->cstr[index] = (xch) value[index];
 	} // Copy all characters, converting if necessary.
@@ -218,7 +221,7 @@ xstr_wrap_f(utf8_string value) {
 
 mstring
 mstr_wrap(utf8_string value) {
-	size_t len = (value == NULL) ? 0 : strlen(value);
+	size_t len = (value == NULL) ? 0 : strlen((char *) value);
 	if (len == 0) return NULL;
 	mstring str = mstr_new(len + MSTR_INC);
 	str->length = len;
@@ -308,7 +311,7 @@ mstr_length(mstring value) {
 xstring
 xstr_append(xstring value, utf32_char ch) {
     size_t length;
-    uint8_t * utf8ch = utf8encode(ch, &length);
+    utf8_string utf8ch = utf8encode(ch, &length);
     xstring retval =  xstr_append_cstr(value, (utf8_string) utf8ch);
     free(utf8ch);
     return retval;
@@ -317,7 +320,7 @@ xstr_append(xstring value, utf32_char ch) {
 mstring
 mstr_append(mstring value, utf32_char ch) {
 	size_t length;
-	uint8_t * utf8ch = utf8encode(ch, &length);
+	utf8_string utf8ch = utf8encode(ch, &length);
     mstring retval = mstr_append_cstr(value, (utf8_string) utf8ch);
     free(utf8ch);
     return retval;
@@ -326,16 +329,16 @@ mstr_append(mstring value, utf32_char ch) {
 xstring
 xstr_append_f(xstring value, utf32_char ch) {
     size_t length;
-    uint8_t * utf8ch = utf8encode(ch, &length);
+    utf8_string utf8ch = utf8encode(ch, &length);
     return  xstr_append_cstr_f(value, (utf8_string) utf8ch);
 }
 
 xstring
 xstr_append_cstr(xstring value, utf8_string cstr) {
 	if (value == NULL) return xstr_wrap(cstr);
-	size_t len = (cstr == NULL) ? 0 : strlen(cstr);
+	size_t len = (cstr == NULL) ? 0 : strlen((char *) cstr);
 	if (len == 0) return value;
-	xch * newstr = (xch *) malloc(len + value->length);
+	utf8_string newstr = (utf8_string) malloc(len + value->length);
 	memcpy(newstr, value->cstr, value->length);
     memcpy(newstr + value->length, cstr, len);
 	xstring ret = xstr_new();
@@ -357,7 +360,7 @@ mstr_append_cstr(mstring value, utf8_string cstr) {
 	if (value == NULL) {
 		return mstr_wrap(cstr);
 	}
-	size_t len = (cstr == NULL) ? 0 : strlen(cstr);
+	size_t len = (cstr == NULL) ? 0 : strlen((char *) cstr);
 	if (len == 0) return value;
 	// Go to the last block of the string.
 	mstring here = value;
@@ -618,7 +621,7 @@ mstr_cstr_f(mstring value) {
  * @return 			The number of code points found, if any.
  */
 static size_t
-count_code_points(uint8_t bytes, size_t length) {
+count_code_points(utf8_string bytes, size_t length) {
 	size_t points = 0;
 	while (length > 0) {
 		size_t used = utf8decode_size(bytes);
@@ -630,20 +633,20 @@ count_code_points(uint8_t bytes, size_t length) {
 }
 
 static utf32_string
-decode(uint8_t * bytes, size_t bytelen, size_t * length) {
-	if (bytes == NULL) return (utf32_string) calloc(sizeof(utf32_char));
+decode(utf8_string bytes, size_t bytelen, size_t * length) {
+	if (bytes == NULL) return (utf32_string) calloc(1, sizeof(utf32_char));
 	// Convert every character of the xstring into a character.
 	size_t scratch = 0;
 	if (length == NULL) length = &scratch;
 	*length = count_code_points(bytes, bytelen);
 	// Allocate the receiving array plus space for the terminating zero.
-	utf32_string retval = calloc(sizeof(utf32_char) * (1 + *length));
+	utf32_string retval = calloc((1 + *length), sizeof(utf32_char));
 	// Convert and copy.
 	utf32_string target = retval;
 	size_t used = 0;
 	for (size_t index = 0; index < *length; ++index) {
 		*(target + index) = utf8decode(bytes, &used);
-		bytes += *used;
+		bytes += used;
 	} // Convert and copy.
     return retval;
 }
@@ -677,13 +680,9 @@ count_bytes(utf32_string value, size_t length) {
 	if (value == NULL) return 0;
 	size_t bytecount = 0;
 	while (bytecount < length) {
-		size_t count = utf8encode_size(value);
+		size_t count = utf8encode_size(*value);
 		bytecount += count;
-		value += count;
-		if (count == 0) {
-			// Found invalid code point.  Force on to next code point.
-			++value;
-		}
+		++value;
 	} // Count bytes.
 	return bytecount;
 }
@@ -694,24 +693,27 @@ encode(utf32_string value, size_t length, size_t * used) {
 	*used = count_bytes(value, length);
 	if (*used == 0) return NULL;
 	// Allocate.
-	uint8_t * retval = (uint8_t *) calloc(sizeof(uint8_t) * (1 + *used));
+	uint8_t * retval = (uint8_t *) calloc((1 + *used), sizeof(uint8_t));
 	// Convert all the characters.
 	for (int index = 0; index < length; ++index) {
-		
+		// TODO Implement.
 	} // Convert all characters.
+	// Done.
+	return retval;
 }
 
 xstring
 xstr_encode(utf32_string value, size_t length) {
 	// Figure out how many bytes to allocate.
 	size_t count = count_bytes(value, length);
-	uint8_t * bytes = calloc(sizeof(uint8_t) * (count + 1));
-
+	uint8_t * bytes = calloc((count + 1), sizeof(uint8_t));
+	// TODO Implement.
     return NULL;
 }
 
 mstring
 mstr_encode(utf32_string value, size_t length) {
+	// TODO Implement.
     return NULL;
 }
 
@@ -727,4 +729,56 @@ mstr_encode_f(utf32_string value, size_t length) {
     mstring retval = mstr_encode(value, length);
     free(value);
     return retval;
+}
+
+struct xstr_iter_ {
+	size_t position;
+	xstring string;
+	utf8_string pointer;
+};
+
+struct mstr_iter_ {
+	size_t position;
+	mstring string;
+	utf8_string pointer;
+};
+
+xstr_iter
+xstr_iterator(xstring xstr) {
+	xstr_iter iter = (xstr_iter) malloc(sizeof(struct xstr_iter_));
+	iter->position = 0;
+	iter->string = xstr;
+	iter->pointer = xstr != NULL ? xstr->cstr : NULL;
+	return iter;
+}
+
+mstr_iter
+mstr_iterator(mstring mstr) {
+	mstr_iter iter = (mstr_iter) malloc(sizeof(struct mstr_iter_));
+	iter->position = 0;
+	iter->string = mstr;
+	iter->pointer = mstr != NULL ? mstr->cstr : NULL;
+	return iter;
+}
+
+inline bool
+xstr_has_next(xstr_iter iter) {
+	return iter->position < iter->string->length;
+}
+
+inline bool
+mstr_has_next(mstr_iter iter) {
+	return iter->position < iter->string->length;
+}
+
+utf32_char
+xstr_next(xstr_iter iter) {
+	// TODO Implement.
+	return 0;
+}
+
+utf32_char
+mstr_next(mstr_iter iter) {
+	// TODO Implement.
+	return 0;
 }

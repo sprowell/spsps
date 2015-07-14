@@ -49,7 +49,7 @@
 typedef uint32_t utf32_char;
 
 /// The marker type of a UTF-8 encoded string.
-typedef uint8_t * utf8_string;
+typedef char * utf8_string;
 
 /// The marker type of a UTF-32 encoded string.
 typedef utf32_char * utf32_string;
@@ -109,9 +109,9 @@ bool is_ISO_control(utf32_char code_point);
  *
  * The iswspace C library function does include the zero-length space.
  *
- * The Java isWhitespace method excludes non-breaking space characters
- * (U+00A0, U+2007, U+202F) and includes record separators (U+001C, U+001D,
- * U+001E, U+001F).
+ * The Java Character.isWhitespace method excludes non-breaking space
+ * characters (U+00A0, U+2007, U+202F) and includes record separators
+ * (U+001C, U+001D, U+001E, U+001F).
  */
 bool is_whitespace(utf32_char code_point);
 
@@ -129,7 +129,7 @@ bool is_whitespace(utf32_char code_point);
  *                      never NULL, and the caller is responsible for
  *                      deallocating it.
  */
-uint8_t * utf8encode(utf32_char code_point, size_t * used);
+utf8_string utf8encode(utf32_char code_point, size_t * used);
 
 /**
  * Given a single Unicode code point (as UTF-32) determine how many bytes
@@ -157,7 +157,7 @@ size_t utf8encode_size(utf32_char code_point);
  *                  input byte sequence is empty, and 0xDChh if the next
  *					byte hh is invalid.
  */
-utf32_char utf8decode(uint8_t * input, size_t * used);
+utf32_char utf8decode(utf8_string input, size_t * used);
 
 /**
  * Given a sequence of bytes determine how many of those bytes make up the
@@ -170,6 +170,6 @@ utf32_char utf8decode(uint8_t * input, size_t * used);
  * @return 			The number of bytes that make up the next UTF-8 character
  * 					(or 1 if the next character is invalid).
  */
-size_t utf8decode_size(uint8_t * input);
+size_t utf8decode_size(utf8_string input);
 
 #endif //SPSPS_UTF8_H_

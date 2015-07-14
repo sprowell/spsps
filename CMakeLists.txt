@@ -46,8 +46,8 @@ if( UNIX )
 endif ( UNIX )
 
 # Build the JSON example.
-add_executable( json test/json_test.c )
-target_link_libraries( json spsps_shared m )
+#add_executable( json test/json_test.c )
+#target_link_libraries( json spsps_shared m )
 
 # Build the TOML example.
 #add_executable( toml test/toml_test.c )
@@ -56,8 +56,10 @@ target_link_libraries( json spsps_shared m )
 # Build the tests.
 add_executable( string_test test/string_test.c )
 target_link_libraries( string_test spsps_shared m )
-add_executable( double_parser test/double_parser.c )
-target_link_libraries( double_parser spsps_shared m )
+#add_executable( double_parser test/double_parser.c )
+#target_link_libraries( double_parser spsps_shared m )
+add_executable( utf8_test test/utf8_test.c )
+target_link_libraries( utf8_test spsps_shared m )
 
 # Add a documentation target.  First we have to find doxygen.
 find_program( doxygen_path doxygen PATHS ENV PATH NO_DEFAULT_PATH )

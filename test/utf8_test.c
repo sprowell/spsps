@@ -73,7 +73,7 @@ END_ITEM(checks);
 START_ITEM(conversion);
 // Test conversion by "round tripping" the values.  Watch out for invalid
 // Unicode values.
-uint8_t * encoded = NULL;
+utf8_string encoded = NULL;
 uint32_t testvalue = 0;
 size_t usedE = 0;
 size_t usedD = 0;
@@ -113,7 +113,7 @@ START_ITEM(badencode);
 for (uint32_t value = 0x110000; value < 0xFFFFFF00; value += 173) {
 	uint32_t testvalue = 0;
 	size_t used = 0;
-	uint8_t * encoded = utf8encode(value, &used);
+	utf8_string encoded = utf8encode(value, &used);
 	if (used != 0) {
 		FAIL("utf8encode did not detect bad code point u+%08X", value);
 	}
@@ -124,7 +124,7 @@ END_ITEM(badencode);
 
 START_ITEM(baddecode);
 // Make an invalid byte stream.
-uint8_t encoded[][6] = {
+char encoded[][6] = {
 	{0xF9, 0x21, 0x23, 0x32, 0x81, 0x43,}, // F9 is an invalid start.
 	{0xF1, 0x80, 0xC0, 0x80, 0x81, 0x43,}, // C0 is an invalid intermediate.
 };
