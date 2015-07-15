@@ -68,7 +68,7 @@ for (wchar_t value = 0; value != 65535; ++value) {
 		}
 	}
 } // Test every wide character.
-END_ITEM(checks);
+END_ITEM;
 
 START_ITEM(conversion);
 // Test conversion by "round tripping" the values.  Watch out for invalid
@@ -106,11 +106,13 @@ for (uint32_t value = 0; value < 0x110000; ++value) {
 	free(encoded);
 	IF_FAIL_STOP;
 } // Test all the valid Unicode range.
-END_ITEM(conversion);
+END_ITEM;
 
 START_ITEM(badencode);
 // Encode bad code points.
-for (uint32_t value = 0x110000; value < 0xFFFFFF00; value += 173) {
+uint32_t value = 0x110000;
+uint32_t oldvalue = 0;
+while (value > oldvalue) {
 	uint32_t testvalue = 0;
 	size_t used = 0;
 	utf8_string encoded = utf8encode(value, &used);
@@ -119,8 +121,10 @@ for (uint32_t value = 0x110000; value < 0xFFFFFF00; value += 173) {
 	}
 	free(encoded);
 	IF_FAIL_STOP;
-} // Try a lot of bad code points.
-END_ITEM(badencode);
+	oldvalue = value;
+	value += rand() % 200 + 1;
+} // Randomly sample from the rest of the space.
+END_ITEM;
 
 START_ITEM(baddecode);
 // Make an invalid byte stream.
@@ -140,6 +144,6 @@ for (int index = 0; index < 2; ++index) {
 	}
 	IF_FAIL_STOP;
 } // Try all bad encodings.
-END_ITEM(baddecode);
+END_ITEM;
 
 END_TEST;

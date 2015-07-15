@@ -56,6 +56,8 @@ endif ( UNIX )
 # Build the tests.
 add_executable( string_test test/string_test.c )
 target_link_libraries( string_test spsps_shared m )
+add_executable( xstring_test test/xstring_test.c )
+target_link_libraries( xstring_test spsps_shared m )
 #add_executable( double_parser test/double_parser.c )
 #target_link_libraries( double_parser spsps_shared m )
 add_executable( utf8_test test/utf8_test.c )

@@ -634,10 +634,10 @@ count_code_points(utf8_string bytes, size_t length) {
 
 static utf32_string
 decode(utf8_string bytes, size_t bytelen, size_t * length) {
-	if (bytes == NULL) return (utf32_string) calloc(1, sizeof(utf32_char));
 	// Convert every character of the xstring into a character.
 	size_t scratch = 0;
 	if (length == NULL) length = &scratch;
+	if (bytes == NULL) return (utf32_string) calloc(1, sizeof(utf32_char));
 	*length = count_code_points(bytes, bytelen);
 	// Allocate the receiving array plus space for the terminating zero.
 	utf32_string retval = calloc((1 + *length), sizeof(utf32_char));
@@ -653,11 +653,13 @@ decode(utf8_string bytes, size_t bytelen, size_t * length) {
 
 utf32_string
 xstr_decode(xstring value, size_t * length) {
+	if (value == NULL) return decode(NULL, 0, length);
 	return decode(value->cstr, value->length, length);
 }
 
 utf32_string
 mstr_decode(mstring value, size_t * length) {
+	if (value == NULL) return decode(NULL, 0, length);
     return decode(mstr_cstr(value), mstr_length(value), length);
 }
 

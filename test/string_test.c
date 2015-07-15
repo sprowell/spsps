@@ -47,9 +47,9 @@ START_TEST;
 	// Define some C strings to work with.
 	int size = 6;
 	utf8_string strings[] = {
-			/* 0 */ NULL,
+			/* 0 */ "",
 			/* 1 */ "",
-			/* 2 */ NULL,
+			/* 2 */ "   \t\t",
 			/* 3 */ "\"Right,\" said ",
 			/* 4 */ "Fred.",
 			/* 5 */ "This is a larger string that is long enough that "
@@ -75,7 +75,8 @@ START_TEST;
 	for (int index = 0; index < size; ++index) {
 		size_t len = strlen(strings[index]);
 		m[index] = mstr_wrap(strings[index]);
-		if (mstr_length(m[index]) != len) {
+		size_t length = mstr_length(m[index]);
+		if (length != len) {
 			FAIL("The mstring %d has length %lu, but the original string "
 					"has length %lu.", index, mstr_length(m[index]), len);
 		}
@@ -100,7 +101,7 @@ START_TEST;
 		}
 	} // Initial basic test.
 	IF_FAIL_STOP;
-	END_ITEM(roundtrip);
+	END_ITEM;
 
 	START_ITEM(nullstring);
 	// Make sure we get NULL if we have an empty string.
@@ -113,7 +114,7 @@ START_TEST;
 		}
 	} // Check for worthless allocations.
 	IF_FAIL_STOP;
-	END_ITEM(nullstring);
+	END_ITEM;
 
 	START_ITEM(compare);
 	// Perform comparisons.  This performs all cross comparisons
@@ -135,7 +136,7 @@ START_TEST;
 		} // Inner compare loop.
 	} // Outer compare loop.
 	IF_FAIL_STOP;
-	END_ITEM(compare);
+	END_ITEM;
 
 	START_ITEM(copy);
 	// Copy some strings.
@@ -150,13 +151,13 @@ START_TEST;
 		y[index] = NULL;
 	} // Loop over string copy.
 	IF_FAIL_STOP;
-	END_ITEM(copy);
+	END_ITEM;
 
 	START_ITEM(leak1);
 	// This should not cause a memory leak thanks to the automated
 	// free in the inner operation.
 	xstr_free(xstr_wrap_f(xstr_cstr(x[5])));
-	END_ITEM(leak1);
+	END_ITEM;
 
 	START_ITEM(concatenate);
 	// Concatenate some strings.  The empty string is NULL.  We don't
@@ -185,7 +186,7 @@ START_TEST;
 	free(cc1);
 	xstr_free(c1);
 	IF_FAIL_STOP;
-	END_ITEM(concatenate);
+	END_ITEM;
 
 	START_ITEM(leak2);
 	// Deallocate.  After this, everything is freed.
@@ -195,7 +196,7 @@ START_TEST;
 		free(cm[index]); cm[index] = NULL;
 		free(cx[index]); cx[index] = NULL;
 	} // Deallocate loop.
-	END_ITEM(leak2);
+	END_ITEM;
 
 	START_ITEM(roundtrip2);
 	// Perform round-trip testing, converting between xstring and mstring.
@@ -210,7 +211,7 @@ START_TEST;
 					"  --> Got: %s", index, strings[index], cc1);
 		}
 	} // Round-trip testing loop.
-	END_ITEM(roundtrip2);
+	END_ITEM;
 
 	START_ITEM(leak3);
 	// Deallocate everything.
@@ -219,7 +220,7 @@ START_TEST;
 		xstr_free(x[index]); x[index] = NULL;
 		xstr_free(y[index]); y[index] = NULL;
 	} // Deallocate loop.
-	END_ITEM(leak3);
+	END_ITEM;
 
 	START_ITEM(xappend);
 	// Append test with xstrings.  These are immutable, so we
@@ -246,13 +247,13 @@ START_TEST;
 	}
 	xstr_free(x1);
 	xstr_free(x2);
-	END_ITEM(xappend);
+	END_ITEM;
 
 	START_ITEM(mappend);
 	// Append test with mstrings.  These are mutable, so we
 	// do not free.
 	mstring m1 = NULL;
-	mstr_append_cstr(m1, "Counting down:");
+	m1 = mstr_append_cstr(m1, "Counting down:");
 	for (int index = 9; index >= 0; --index) {
 		mstr_append(m1, '0'+index);
 	} // Countdown loop.
@@ -268,7 +269,7 @@ START_TEST;
 		char * cm2 = mstr_cstr(m2);
 		FAIL("Append generated the wrong mstring.\n"
 				"  --> Expected: %s\n"
-				"  --> Got: %s", cm1, cm2);
+				"  --> Got: %s", cm2, cm1);
 		free(cm1);
 		free(cm2);
 	}
@@ -290,6 +291,6 @@ START_TEST;
 	}
 	mstr_free(m1);
 	xstr_free(x1);
-	END_ITEM(mappend);
+	END_ITEM;
 
 END_TEST;

@@ -64,6 +64,7 @@
 #include <stdbool.h> // For bool.
 #include <stdlib.h> // For srand.
 #include <string.h> // For strlen.
+#include <setjmp.h> // For setjmp, longjmp, jmp_buf.
 
 
 //======================================================================
@@ -244,6 +245,7 @@
  * Macro to set up a test.  Use this once at the start of your test.
  */
 #define START_TEST \
+static jmp_buf buf; \
 int main(int argc, char *argv[]) { \
 	bool tf_need_space = false, tf_need_endl = false, tf_need_indent = false; \
 	int tf_retval = 0; \
@@ -319,28 +321,28 @@ int main(int argc, char *argv[]) { \
 
 /**
  * Start an item in the test.  Declarations in an item are local to the item.
- * Use an item name that is distinct from all other items and the test name,
- * and which can be used as a goto label (so a valid symbol).
  */
 #define START_ITEM(item_name_m) \
 	if (tf_item_enabled) { \
 		bool tf_fail_item = false; \
 		tf_need_space = false; \
-		TS("Starting item %s", STRINGIFY(item_name_m)); \
+		char * item_name = STRINGIFY(item_name_m); \
+		TS("Starting item %s", item_name); \
 		tf_need_space = false; \
 		tf_need_indent = true; \
-		tf_need_endl = false;
+		tf_need_endl = false; \
+		if (! setjmp(buf)) {
 
 /**
  * Fail the current test item.  This allows testing to proceed to the next
- * test item, if any, provided it is not disabled.  The item name must match.
+ * test item, if any, provided it is not disabled.
  */
-#define FAIL_ITEM(item_name_m, fmt_m, ...) \
-		tf_fail_test = true; \
-		tf_fail_item = true; \
-		WRITE("FAILED"); \
-		WRITELN(fmt_m, ##__VA_ARGS__); \
-		goto LABEL(item_name_m);
+#define FAIL_ITEM(fmt_m, ...) \
+			tf_fail_test = true; \
+			tf_fail_item = true; \
+			WRITE("FAILED"); \
+			WRITELN(fmt_m, ##__VA_ARGS__); \
+			longjmp(buf, 1);
 
 /**
  * Fail the current test item, but continue with the item.  This allows
@@ -348,36 +350,34 @@ int main(int argc, char *argv[]) { \
  * to be stopped.
  */
 #define FAIL(fmt_m, ...) \
- 		tf_fail_test = true; \
- 		tf_fail_item = true; \
- 		WRITE("FAILED"); \
-		WRITELN(fmt_m, ##__VA_ARGS__);
+	 		tf_fail_test = true; \
+	 		tf_fail_item = true; \
+	 		WRITE("FAILED"); \
+			WRITELN(fmt_m, ##__VA_ARGS__);
 
 /**
  * End a test item.  Include this at the end of your test item code and
- * before starting any new item (or ending the test).  The item name must
- * match.
+ * before starting any new item (or ending the test).
  */
-#define END_ITEM(item_name_m) \
-		if (false) goto LABEL(item_name_m); \
-		LABEL(item_name_m): \
+#define END_ITEM \
+ 		} \
 		if (!tf_fail_item) { \
 			WRITELN("SUCCESS"); \
 		} \
 		IF_ENDL; \
 		tf_need_indent = false; \
-		TS("Ending item %s", STRINGIFY(item_name_m)); \
+		TS("Ending item %s", item_name); \
 	} \
 	tf_item_enabled = true;
 
 /**
  * Validate a computed value against the actual (oracle) value.  If validation
- * fails, fail the item item_name_m, and emit a mismatch message.
+ * fails, write a failure message.
  */
-#define VALIDATE(item_name_m, computed_m, actual_m) \
-	if (strcmp((computed_m), (actual_m))) { \
-		FAIL_ITEM(item_name_m, "mismtach (%s != %s)", \
-			(computed_m), (actual_m)); \
-    }
+#define VALIDATE(computed_m, actual_m) \
+		if (strcmp((computed_m), (actual_m))) { \
+			FAIL("mismtach (%s != %s)", \
+				(computed_m), (actual_m)); \
+	    }
 
 #endif /*TEST_FRAME_H_*/
