@@ -39,9 +39,37 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include "utf8.h"
+#ifndef SPSPS_READ
+ 	#define NEED_STDIO
+#endif
+#ifndef SPSPS_ERROR
+ 	#define NEED_STDIO
+#endif
+#ifdef NEED_STDIO
+	#include <stdio.h>
+#endif
+
+/// This is the method used to read bytes.  By default it uses `fread` and
+/// requires `stdio.h`.  If you `\#define` this prior to inclusion, then you
+/// can override it with whatever you want.
+///
+/// It must have the required argument structure, and must return the number
+/// of bytes successfully read.  That is, it must behave like `fread`.
+///
+/// If you define `SPSPS_READ`, then you must also define `SPSPS_FILE` to be
+/// whatever you want passed along as the last argument to `SPSPS_READ`.  If
+/// you don't need it, `/#define` it to `void` and pass `NULL` for the `stream`
+/// argument to `spsps_new`.
+#ifndef SPSPS_READ
+	#define SPSPS_READ(m_dest, m_size, m_number, m_source) \
+ 		fread(m_dest, m_size, m_number, m_source)
+ 	#define SPSPS_FILE FILE
+#endif
+#ifndef SPSPS_FILE
+ 	#error You defined SPSPS_READ, but did not define SPSPS_FILE.
+#endif
 
 /// The number of bytes to read at once.  This is also the lookahead limit.
 /// To override this value \#define it prior to inclusion.  Note that this
@@ -112,10 +140,24 @@ char * spsps_loc_to_string(Loc * loc);
 
 /// The destination for error messages.  To override this \#define it prior to
 /// inclusion.  It must specify an open FILE* destination.  By default this
-/// will be stderr.  If you set this to NULL, you will suppress messages.  This
-/// must be done at compile time.
+/// will be stderr.
 #ifndef SPSPS_STDERR
 	#define SPSPS_STDERR (stderr)
+#endif
+
+/// This is the method used to write an error message.  By default it uses
+/// `fprintf`, writes to `SPSPS_STDERR`, and requires `stdio.h`.  If you
+/// `\#define` this prior to inclusion, then you may override it with whatever
+/// you want.  Arguments must look like `printf` (a format string followed by
+/// arguments).
+///
+/// Note that `SPSPS_ERR` calls this, and that is the method you want to use
+/// to report an error from inside your parser, not this one!
+///
+/// @param m_msg			The message (a format string) plus arguments.
+#ifndef _SPSPS_ERROR
+ 	#define _SPSPS_ERROR(m_msg, ...) \
+ 		fprintf(SPSPS_STDERR, m_msg, ##__VA_ARGS__)
 #endif
 
 /**
@@ -125,32 +167,29 @@ char * spsps_loc_to_string(Loc * loc);
  * (as a format string) and subsequent arguments are the arguments to the
  * format string.  If you wish to use a different stream, either redirect
  * standard error, or \#define SPSPS_STDERR to your stream.
+ *
  * @param m_parser			The parser.
  * @param m_msg				The message (a format string) plus arguments.
  */
-#if SPSPS_STDERR == NULL
-#define SPSPS_ERR(m_parser, m_msg, ...)
-#else
 #define SPSPS_ERR(m_parser, m_msg, ...) { \
 	if ((m_parser) != NULL) { \
 		Loc * loc = spsps_loc(m_parser); \
 		if ((m_msg) != NULL) { \
-			fprintf(SPSPS_STDERR, "ERROR %s:%d:%d: " m_msg "\n", (loc)->name, \
+			_SPSPS_ERROR("ERROR %s:%d:%d: " m_msg "\n", (loc)->name, \
 					(loc)->line, (loc)->column, ## __VA_ARGS__); \
 		} else { \
-			fprintf(SPSPS_STDERR, "ERROR %s:%d:%d: Unspecified error.\n", \
+			_SPSPS_ERROR("ERROR %s:%d:%d: Unspecified error.\n", \
 					(loc)->name, (loc)->line, (loc)->column); \
 		} \
 		free(loc); \
 	} else { \
 		if ((m_msg) != NULL) { \
-			fprintf(SPSPS_STDERR, "ERROR: " m_msg "\n", ## __VA_ARGS__); \
+			_SPSPS_ERROR("ERROR: " m_msg "\n", ## __VA_ARGS__); \
 		} else { \
-			fprintf(SPSPS_STDERR, "ERROR: Unspecified error.\n"); \
+			_SPSPS_ERROR("ERROR: Unspecified error.\n"); \
 		} \
 	} \
 }
-#endif
 
 /**
  * A parser object is an opaque pointer.
@@ -167,7 +206,7 @@ typedef struct spsps_parser_ * Parser;
  * If the character is not an ISO control character (the code points U+0000
  * through U+001F and U+007F through U+009F, inclusive) then it is considered
  * printable, and it is printed in place of the c.  Otherwise the " (c)" is
- * omitted.  Note this is not prefect, as it ignores combining code points and
+ * omitted.  Note this is not perfect, as it ignores combining code points and
  * the current locale.
  *
  * If the input character is not a valid Unicode code point, then the results
@@ -183,11 +222,16 @@ char * spsps_printchar(utf32_char xch);
  * returned parser instance by calling spsps_free.  The provided file name is
  * copied to new allocated memory, and the caller is responsible for freeing
  * the first argument, if necessary.
+ *
  * @param name 			The name of the stream.  Typically a file name.
  *                      If the name is NULL, then the default name "(console)"
  *                      is used.
  * @param stream 		A stream to parse.  If the stream is NULL, then the
- *                      stream is treated as if it were empty.
+ *                      stream is treated as if it were empty.  This is given
+ *						as a pointer to a "thing" that makes sense to whatever
+ *						implementation of `SPSPS_READ` is used.  If you have
+ * 						not overwritten `SPSPS_READ`, then it must be a
+ *						`FILE` pointer.
  * @return 				The new parser instance.
  */
 Parser spsps_new(char * name, FILE * stream);
@@ -217,8 +261,7 @@ void spsps_consume_n(Parser parser, size_t n);
 /**
  * Consume and discard all whitespace.  When this method returns the next
  * character is the first non-whitespace character, or the end of file has
- * been reached.  This uses the iswspace library function, which in turn uses
- * the current locale.
+ * been reached.  This uses the Unicode definition of whitespace.
  * @param parser 		The parser.
  */
 void spsps_consume_whitespace(Parser parser);
@@ -257,7 +300,7 @@ utf32_char spsps_peek(Parser parser);
  * @param n				The number of characters to look ahead.
  * @return				The next characters.
  */
-uint8_t * spsps_peek_n(Parser parser, size_t n);
+utf8_string spsps_peek_n(Parser parser, size_t n);
 
 /**
  * Peek ahead and determine if the next characters in the stream are the given
@@ -267,7 +310,7 @@ uint8_t * spsps_peek_n(Parser parser, size_t n);
  * @param next			The characters.
  * @return				True iff the stream contains the given string next.
  */
-bool spsps_peek_str(Parser parser, uint8_t * next);
+bool spsps_peek_str(Parser parser, utf8_string next);
 
 /**
  * Peek ahead at the next few characters and if they are a given string, then
@@ -276,6 +319,6 @@ bool spsps_peek_str(Parser parser, uint8_t * next);
  * @param next 			The characters to check for.
  * @return 				False iff the stream was left unchanged.
  */
-bool spsps_peek_and_consume(Parser parser, uint8_t * next);
+bool spsps_peek_and_consume(Parser parser, utf8_string next);
 
 #endif /* SPSPS_PARSER_H_ */

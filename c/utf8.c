@@ -38,6 +38,12 @@
 #include "utf8.h"
 
 bool
+is_digit(utf32_char code_point) {
+    return
+        (0x0030 <= code_point && code_point <= 0x0039);
+}
+
+bool
 is_ISO_control(utf32_char code_point) {
     return
         (code_point <= 0x001F) ||
@@ -58,6 +64,16 @@ is_whitespace(utf32_char code_point) {
         code_point == 0x202F ||
         code_point == 0x205F ||
         code_point == 0x3000;
+}
+
+bool
+is_simple_whitespace(utf32_char code_point) {
+    return
+        code_point == 0x0009 ||
+        code_point == 0x000A ||
+        code_point == 0x000C ||
+        code_point == 0x000D ||
+        code_point == 0x0020;
 }
 
 /*

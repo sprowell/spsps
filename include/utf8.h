@@ -55,6 +55,15 @@ typedef char * utf8_string;
 typedef utf32_char * utf32_string;
 
 /**
+ * Determine if the provided code point is a digit in the usual (ASCII) range.
+ * These are the code points in the closed interval [U+0030 - U+0039], only.
+ *
+ * @param code_point	The code point to test.
+ * @return 				True if the code point is a digit, and false otherwise.
+ */
+bool is_digit(utf32_char code_point);
+
+/**
  * Determine if the provided code point is an ISO control character.  These are
  * the code points in the closed intervals [U+0000 - U+001F] and
  * [U+007F - U+009F].  Nothing above U+009F is considered an ISO control
@@ -114,6 +123,22 @@ bool is_ISO_control(utf32_char code_point);
  * (U+001C, U+001D, U+001E, U+001F).
  */
 bool is_whitespace(utf32_char code_point);
+
+/**
+ * Determine if the provided code point is a simple whitespace character.
+ * This method differs from is_whitespace in that it only permits the usual
+ * five whitespace characters.
+ *
+ *   - U+0009 horizontal tabulation
+ *   - U+000A line feed
+ *   - U+000C form feed
+ *   - U+000D carriage return
+ *   - U+0020 space
+ *
+ * This is often what you want, especially if you expect the input to be
+ * ASCII.
+ */
+bool is_simple_whitespace(utf32_char code_point);
 
 /**
  * Given a single character, encode it into the sequence of UTF-8 bytes.

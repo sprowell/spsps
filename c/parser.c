@@ -36,8 +36,6 @@
 
 #include "parser.h"
 #include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <wchar.h>
 
@@ -51,7 +49,7 @@ struct spsps_parser_ {
 	/// The current zero-based block index.
 	uint8_t block;
 	/// The blocks.
-	SPSPS_CHAR blocks[2][SPSPS_LOOK];
+	char blocks[2][SPSPS_LOOK];
 	/// How many times we have consumed the EOF.
 	uint16_t eof_count;
 	/// How many times we have peeked without consuming.
@@ -68,7 +66,7 @@ struct spsps_parser_ {
 	uint32_t line;
 	/// The most recent error code.
 	spsps_errno errno;
-	/// Whether the buffer been initialized the first time
+	/// Whether the buffer been initialized the first time.
 	bool initialized;
 };
 
@@ -80,20 +78,22 @@ struct spsps_parser_ {
 // that we reserve a larger chunk than is necessary, since Unicode characters
 // are only valid up to six digits at present.  However, we will produce
 // (potentially) 8 character results for invalid code points.
-char chbuf[64]; // U+12345678 (c)
-char * spsps_printchar(utf32_char ch) {
+char chbuf[24]; // u+12345678 (c)
+// hex digits (8) + "u+" (2) + space (1) + parens (2) + Unicode code point in
+// UTF-8 (4) + terminating nul (1) = 18.
+
+char *
+spsps_printchar(utf32_char ch) {
+	// Allocation: Nothing is allocated or deallocated by this method.
+	char * format = ch < 0x10000 ? "U+%04lX (%lc)" : "u+%lX (%lc)";
 	// Check to see if this is an ISO control character and, if so, suppress
 	// printing the character.
 	if (is_ISO_control(ch)) {
 		// This is an ISO control character.
-		sprintf(chbuf, "U+%04X", ch);
-	} else if (0x10000 > ch) {
-		// This is in the BMP range, so use four digits.
-		sprintf(chbuf, "U+%04X (%1lc", (wchar_t) ch);
+		sprintf(chbuf, format, ch, '?');
 	} else {
-		// This is outside the four digit range, so use any digits and suppress
-		// the glyph (if any) for now.
-		sprintf(chbuf, "U+%X");
+		// This is in the BMP range.
+		sprintf(chbuf, format, ch, ch);
 	}
 	return chbuf;
 }
@@ -101,21 +101,16 @@ char * spsps_printchar(utf32_char ch) {
 void
 spsps_read_other_(Parser parser) {
 	// Allocation: Nothing is allocated or deallocated by this method.
-	size_t count = fread(parser->blocks[parser->block^1], 1,
+	size_t count = SPSPS_READ(parser->blocks[parser->block^1], 1,
 		SPSPS_LOOK, parser->stream);
 	if (count < SPSPS_LOOK) {
-		if (sizeof(SPSPS_CHAR) == 1) {
-			memset(parser->blocks[parser->block^1] + count, SPSPS_EOF,
-				SPSPS_LOOK - count);
-		} else {
-			for (; count < SPSPS_LOOK; ++count) {
-				parser->blocks[parser->block^1][count] = SPSPS_EOF;
-			} // Clear the remainder of the block.
-		}
+		memset(parser->blocks[parser->block^1] + count, SPSPS_EOF,
+			SPSPS_LOOK - count);
 	}
 }
 
-void spsps_initialize_parser_(Parser parser){
+void spsps_initialize_parser_(Parser parser) {
+	// Allocation: Nothing is allocated or deallocated by this method.
 	spsps_read_other_(parser);
 	parser->block ^= 1;
 	parser->initialized = true;
@@ -143,13 +138,13 @@ spsps_loc_to_string(Loc * loc) {
 	sprintf(buf, "%s:%d:%d", loc->name, loc->line, loc->column);
 	if (strlen(buf) > mlen) {
 		// This should never, never, never happen.
-		fprintf(stderr, "Internal error in loc string construction.\n");
+		_SPSPS_ERROR("Internal error in loc string construction.\n");
 		exit(1);
 	}
 	return buf;
 }
 
-SPSPS_CHAR
+utf32_char
 spsps_look_(Parser parser, size_t n) {
 	// Allocation: Nothing is allocated or deallocated by this method.
 	if (n >= SPSPS_LOOK) {
@@ -211,10 +206,10 @@ spsps_free(Parser parser) {
 	free(parser);
 }
 
-SPSPS_CHAR
+utf32_char
 spsps_consume(Parser parser) {
 	// Nothing is allocated or deallocated by this method.
-	SPSPS_CHAR ch = spsps_look_(parser, 0);
+	utf32_char ch = spsps_look_(parser, 0);
 	spsps_consume_n(parser, 1);
 	parser->errno = OK;
 	return ch;
@@ -288,14 +283,14 @@ spsps_loc(Parser parser) {
 	return loc;
 }
 
-SPSPS_CHAR
+utf32_char
 spsps_peek(Parser parser) {
 	// Nothing is allocated or deallocated by this method.
 	parser->errno = OK;
 	return spsps_look_(parser, 0);
 }
 
-char *
+utf8_string
 spsps_peek_n(Parser parser, size_t n) {
 	// Allocates and returns a fixed-length string.
 	if (n >= SPSPS_LOOK) {
@@ -304,7 +299,7 @@ spsps_peek_n(Parser parser, size_t n) {
 		return "";
 	}
 	parser->errno = OK;
-	SPSPS_CHAR * buf = (SPSPS_CHAR *) malloc(sizeof(SPSPS_CHAR) * n);
+	utf8_string buf = (utf8_string) malloc(sizeof(char) * n);
 	for (size_t index = 0; index < n; ++index) {
 		buf[index] = spsps_look_(parser, index);
 	} // Read characters into buffer.
@@ -312,7 +307,7 @@ spsps_peek_n(Parser parser, size_t n) {
 }
 
 bool
-spsps_peek_str(Parser parser, char * next) {
+spsps_peek_str(Parser parser, utf8_string next) {
 	// Nothing is allocated or deallocated by this method.
 	size_t n = strlen(next);
 	if (n >= SPSPS_LOOK) {
@@ -328,7 +323,7 @@ spsps_peek_str(Parser parser, char * next) {
 }
 
 bool
-spsps_peek_and_consume(Parser parser, char * next) {
+spsps_peek_and_consume(Parser parser, utf8_string next) {
 	// Nothing is allocated or deallocated by this method.
 	parser->errno = OK;
 	if (spsps_peek_str(parser, next)) {

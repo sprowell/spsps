@@ -7,14 +7,12 @@
  *
  * To use this, include this header file.  You can define a test using
  * START_TEST and END_TEST.  Within a test you can define individual
- * items with the START_ITEM(name_m) and END_ITEM(name_m) macros, where
- * the item name you use must match, and is significant - it is used to
- * generate messages.
+ * items with the START_ITEM(name_m) and END_ITEM macros, where
+ * the item name is a symbol used in messages.
  *
- * Use FAIL_ITEM(name_m) to fail an item, and the item name must match
- * there, too.  If you get really odd errors, check that names match
- * in your macros.  You can't reuse names within a test, or bad things
- * will happen!
+ * Use FAIL to record failure, and FAIL_ITEM to fail and skip the rest of
+ * the current item.  Also useful is IF_FAIL_STOP to halt a test entirely
+ * if there has been a failure.
  *
  * @author sprowell@gmail.com
  *
@@ -47,7 +45,7 @@
  */
 
 
-// By default ever test is run in a separate process.  If you don't want
+// By default every test is run in a separate process.  If you don't want
 // that (because it can be a problem during debugging) then #define NOFORK
 // before you #include this file.
 

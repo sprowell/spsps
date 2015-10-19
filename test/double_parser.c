@@ -7,7 +7,7 @@
 int
 parse_digits(Parser parser, int* count) {
     *count = 0;
-    if (! isdigit(spsps_peek(parser))) {
+    if (! is_digit(spsps_peek(parser))) {
         SPSPS_ERR(parser, "Expected to find a digit, but instead found %s.",
                   spsps_printchar(spsps_peek(parser)));
         return 0;
